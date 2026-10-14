@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flow Studio — Energy diagram editor</title>
+<meta name="description" content="ارسم مخططات تدفق الطاقة، خصّص البيانات والحالات، وصدّرها للويب وتطبيقات Flutter.">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="screens.css">
+</head>
+<body class="booting" data-current-screen="loading">
+<script>window.addEventListener("error",function(e){if(e.target&&e.target.tagName==="SCRIPT"){var m=document.getElementById("loading-message"),r=document.getElementById("loading-retry");if(m)m.textContent="تعذّر تحميل أحد ملفات المشروع. أعد فتح الملف أو حاول مرة أخرى.";if(r)r.hidden=false;}} ,true);</script>
+<header class="app-header" id="site-header" hidden>
+ <a class="brand" href="#home" aria-label="Flow Studio الرئيسية"><span class="brand-mark">↯</span><div><strong>Flow Studio</strong><span>Energy diagrams, made yours.</span></div></a>
+ <nav class="site-nav" aria-label="التنقل الرئيسي" dir="rtl"><a href="#home" data-screen-link="home">الرئيسية</a><a href="#editor" data-screen-link="editor">المحرر</a><a href="#docs" data-screen-link="docs">التوثيق</a></nav>
+ <div class="header-actions" id="editor-header-actions" hidden><span id="save-status" class="save-status">Local project</span><button id="open-project">Open project</button><button id="save-project">Save project</button><button id="export-open" class="primary">Export ↗</button></div>
+</header>
+<section id="screen-loading" data-screen="loading" class="loading-screen" aria-labelledby="loading-heading" lang="ar" dir="rtl">
+ <div class="loading-shell">
+  <a class="loading-brand" href="#home" aria-label="Flow Studio الرئيسية"><span class="brand-mark">↯</span><strong>Flow Studio</strong></a>
+  <div class="loading-orbit" aria-hidden="true"><svg viewBox="0 0 280 100" fill="none"><path class="loading-track" d="M20 50H88Q100 50 100 38V30Q100 18 112 18H168Q180 18 180 30V70Q180 82 192 82H248Q260 82 260 70V50"/><path class="loading-pulse" d="M20 50H88Q100 50 100 38V30Q100 18 112 18H168Q180 18 180 30V70Q180 82 192 82H248Q260 82 260 70V50"/><circle cx="20" cy="50" r="7"/><circle cx="140" cy="18" r="7"/><circle cx="260" cy="50" r="7"/></svg></div>
+  <span class="page-kicker" dir="ltr">LOADING YOUR WORKSPACE</span>
+  <h1 id="loading-heading">جارٍ تجهيز مساحة العمل</h1>
+  <p id="loading-message" role="status" aria-live="polite">تجهيز مجسمات الطاقة والخطوط المتحركة.</p>
+  <progress id="loading-progress" value="0" max="100" aria-label="تقدم تجهيز الأصول"></progress>
+  <div class="loading-meta"><span id="loading-count">0 / 8</span><span>Flow Studio</span></div>
+  <a id="loading-continue" class="page-button primary" href="#editor" hidden>افتح المحرر</a>
+  <button id="loading-retry" class="page-button" type="button" hidden onclick="location.reload()">أعد المحاولة</button>
+  <p class="loading-footnote">مشروعك المحفوظ على هذا الجهاز يبقى متاحًا.</p>
+ </div>
+</section>
+<main id="screen-home" data-screen="home" class="home-screen lp" lang="ar" dir="rtl" hidden aria-labelledby="home-heading">
+ <section class="lp-hero">
+  <div class="lp-hero-inner">
+   <div class="lp-hero-copy">
+    <a class="lp-badge" href="#docs/flutter"><span>جديد</span>مكتبة Flutter أصلية بدون WebView<i aria-hidden="true">←</i></a>
+    <h1 id="home-heading" tabindex="-1">مخططات طاقة متحركة،<br><span class="lp-accent">ببياناتك الحية.</span></h1>
+    <p class="lp-lead">ارسم تدفّق الطاقة بين الألواح والبطارية والإنفرتر والشبكة، وتحكّم في كل خط ونبضة. ثم صدّره للويب أو لتطبيق Flutter بنفس الجودة تمامًا.</p>
+    <div class="lp-actions"><a class="lp-btn primary" href="#editor">ابدأ الرسم الآن<i aria-hidden="true">←</i></a><a class="lp-btn ghost" href="#docs/quickstart">اقرأ الدليل</a></div>
+    <ul class="lp-proof">
+     <li><b>6</b><span>صيغ تصدير جاهزة</span></li>
+     <li><b dir="ltr">0.3%</b><span>فرق بكسل بين الويب وFlutter</span></li>
+     <li><b>0</b><span>إنترنت أو تثبيت مطلوب</span></li>
+    </ul>
+   </div>
+   <div class="lp-stage">
+    <div class="lp-window" dir="ltr">
+     <div class="lp-window-bar"><span class="lp-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="lp-file" dir="ltr">hybrid.flow.json</span><span class="lp-live" dir="ltr"><i aria-hidden="true"></i>LIVE</span></div>
+     <div id="home-flow-preview" class="lp-preview" role="img" aria-label="معاينة متحركة لمخطط تدفق الطاقة"></div>
+    </div>
+    <div class="lp-float lp-float-data" aria-hidden="true"><span>إنتاج الألواح</span><b dir="ltr"><span id="home-live-value">7.2</span> kW</b><small><i></i>يتحدّث كل ثانيتين</small></div>
+    <div class="lp-float lp-float-code" dir="ltr" aria-hidden="true"><span class="tok-fn">flow</span>.setNodeData(<span class="tok-str">'solar'</span>, value: <span class="tok-num" id="home-live-code">7.2</span>)</div>
+   </div>
+  </div>
+ </section>
+
+ <section class="lp-formats" aria-label="صيغ التصدير"><span>صدّر إلى</span><ul dir="ltr"><li>HTML</li><li>Flutter</li><li>SVG</li><li>PNG 3×</li><li>Lottie</li><li>.flow.json</li></ul></section>
+
+ <section class="lp-section" aria-labelledby="features-heading">
+  <div class="lp-heading"><span class="lp-kicker">كل ما تحتاجه</span><h2 id="features-heading">مصمَّم ليعرض الطاقة بوضوح.</h2><p>من أول خط ترسمه إلى آخر قيمة تصل من جهازك، كل جزء قابل للتحكم.</p></div>
+  <div class="lp-bento">
+   <article class="lp-card lp-card-wide">
+    <div><span class="lp-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 18c5 0 5-12 10-12s4 6 8 6"/></svg></span><h3>خطوط تتحكم في كل تفصيلة</h3><p>زوايا قائمة أو مستقيمة أو منحنية. اختر نقطة الاتصال على أي جانب، وعدد النبضات وطولها، والتوهج، ونمط الخط: متصل أو متقطع أو نقاط.</p><div class="lp-tags" dir="ltr"><span>orthogonal</span><span>straight</span><span>curved</span><span>1–12 pulses</span><span>glow</span></div></div>
+    <svg class="lp-lines-demo" viewBox="0 0 260 150" aria-hidden="true"><path class="track" d="M20 30H110Q122 30 122 42V108Q122 120 134 120H240"/><path class="pulse" d="M20 30H110Q122 30 122 42V108Q122 120 134 120H240"/><path class="track dashed" d="M20 75H240"/><path class="pulse two" d="M20 75H240"/><path class="track dotted" d="M20 120C100 120 150 30 240 30"/><path class="pulse three" d="M20 120C100 120 150 30 240 30"/></svg>
+   </article>
+   <article class="lp-card"><span class="lp-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12h3l3-7 4 14 3-7h3"/></svg></span><h3>بيانات حية</h3><p>أرسل القيمة والوحدة والتيار والكفاءة ونص الحالة. فعّل أو أخفِ أي عنصر أو خط واعكس اتجاه الحركة.</p><code class="lp-snippet" dir="ltr">setFlowDirection('battery', -1)</code></article>
+   <article class="lp-card"><span class="lp-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 3 5 12l3 3 9-9h-3ZM8 15l3 3-3 3-3-3Z"/></svg></span><h3>Flutter أصلي</h3><p>مكتبة <code dir="ltr">flow_studio</code> ترسم الملف داخل التطبيق مباشرة. صدّر واحصل على كود Dart جاهز بأسماء عناصرك.</p></article>
+   <article class="lp-card"><span class="lp-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m3 16 5-5 4 4 3-3 6 6"/><circle cx="15.5" cy="8.5" r="1.5"/></svg></span><h3>أي صورة، بجودتها الأصلية</h3><p>اسحب أو الصق صورك. SVG وPNG وJPEG وWebP تُحفظ كما هي، والصيغ الأخرى تتحول بدون فقد.</p><div class="lp-tags" dir="ltr"><span>SVG</span><span>PNG</span><span>WebP</span><span>AVIF</span><span>GIF</span></div></article>
+   <article class="lp-card"><span class="lp-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/><path d="M13 7h4a2 2 0 0 1 2 2v2M11 17H7a2 2 0 0 1-2-2v-2"/></svg></span><h3>نفس الرسم في كل مكان</h3><p>المحرر والويب وFlutter يستخدمون نفس المسارات بالضبط، ومختبرة خطًا بخط وبكسلًا ببكسل.</p></article>
+   <article class="lp-card lp-card-strip"><span class="lp-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7v5l3 2"/><path d="M17 3h4v4"/></svg></span><div><h3>بدون إنترنت أو تثبيت</h3><p>ملف HTML واحد يعمل في المتصفح. حفظ تلقائي على جهازك، تراجع وإعادة، واختصارات لوحة المفاتيح.</p></div><a class="lp-btn ghost small" href="#editor">جرّبه الآن<i aria-hidden="true">←</i></a></article>
+  </div>
+ </section>
+
+ <section class="lp-section" aria-labelledby="workflow-heading">
+  <div class="lp-heading"><span class="lp-kicker">كيف يعمل</span><h2 id="workflow-heading">من الرسم إلى التطبيق في ثلاث خطوات.</h2></div>
+  <ol class="lp-steps">
+   <li><span class="lp-step-num">1</span><h3>ارسم</h3><p>ابدأ بمخطط جاهز أو مساحة فارغة. اسحب المجسمات أو صورك، واربطها بخط واحد.</p></li>
+   <li><span class="lp-step-num">2</span><h3>خصّص</h3><p>عدّل الأسماء والقيم والحالات، وشكل كل خط وسرعته ولونه من لوحة الخصائص.</p></li>
+   <li><span class="lp-step-num">3</span><h3>صدّر واربط</h3><p>صدّر للويب أو Flutter، وأرسل بياناتك الحقيقية من موقعك أو تطبيقك.</p></li>
+  </ol>
+ </section>
+
+ <section class="lp-section lp-code" aria-labelledby="code-heading">
+  <div class="lp-code-copy">
+   <span class="lp-kicker">للمطورين</span><h2 id="code-heading">سطران لعرض المخطط.<br>وسطر لكل تحديث.</h2>
+   <p>نفس الأوامر في JavaScript وDart: الحالات والقيم والاتجاه والإيقاف والتشغيل. معرّفات العناصر تظهر في المحرر وفي كود التصدير.</p>
+   <div class="lp-code-tabs" role="tablist" aria-label="لغة المثال"><button role="tab" aria-selected="true" aria-controls="lp-code-dart" data-lp-tab="dart">Flutter · Dart</button><button role="tab" aria-selected="false" aria-controls="lp-code-js" data-lp-tab="js">Web · JavaScript</button></div>
+   <a class="text-link" href="#docs/api">مرجع البيانات والحالات ←</a>
+  </div>
+  <div class="lp-code-window" dir="ltr">
+   <div class="lp-window-bar"><span class="lp-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="lp-file" id="lp-code-file">energy_screen.dart</span></div>
+<pre id="lp-code-dart" role="tabpanel"><code><span class="tok-kw">final</span> flow = <span class="tok-fn">FlowController</span>.asset(<span class="tok-str">'assets/hybrid.flow.json'</span>);
+
+<span class="tok-fn">FlowStudioView</span>(controller: flow);
+
+flow.<span class="tok-fn">setNodeData</span>(<span class="tok-str">'solar'</span>, value: <span class="tok-num">8.7</span>, status: <span class="tok-str">'يعمل'</span>);
+flow.<span class="tok-fn">setFlowState</span>(<span class="tok-str">'grid'</span>, <span class="tok-fn">FlowState</span>.hidden);
+flow.<span class="tok-fn">setFlowDirection</span>(<span class="tok-str">'battery'</span>, <span class="tok-num">-1</span>);</code></pre>
+<pre id="lp-code-js" role="tabpanel" hidden><code><span class="tok-cm">&lt;!-- Export → HTML, then embed it --&gt;</span>
+<span class="tok-kw">&lt;iframe</span> src=<span class="tok-str">"/flows/hybrid.html"</span><span class="tok-kw">&gt;&lt;/iframe&gt;</span>
+
+energyFlow.<span class="tok-fn">setNodeData</span>(<span class="tok-str">'solar'</span>, { value: <span class="tok-num">8.7</span>, status: <span class="tok-str">'يعمل'</span> });
+energyFlow.<span class="tok-fn">setFlowState</span>(<span class="tok-str">'grid'</span>, <span class="tok-str">'hidden'</span>);
+energyFlow.<span class="tok-fn">setFlowDirection</span>(<span class="tok-str">'battery'</span>, <span class="tok-num">-1</span>);</code></pre>
+  </div>
+ </section>
+
+ <section class="lp-section" aria-labelledby="platforms-heading">
+  <div class="lp-heading"><span class="lp-kicker">منصتك</span><h2 id="platforms-heading">مخطط واحد، يعمل حيث تحتاجه.</h2></div>
+  <div class="lp-platforms">
+   <a href="#docs/flutter" class="lp-platform"><span class="lp-platform-mark flutter" aria-hidden="true">F</span><h3>Flutter</h3><p>Android · iOS · Web · Desktop</p><small>رسم أصلي بمكتبة flow_studio</small><i aria-hidden="true">←</i></a>
+   <a href="#docs/web" class="lp-platform"><span class="lp-platform-mark web" aria-hidden="true">&lt;/&gt;</span><h3>الويب</h3><p>HTML · Next.js · Vue</p><small>iframe وواجهة JavaScript</small><i aria-hidden="true">←</i></a>
+   <a href="#docs/exports" class="lp-platform"><span class="lp-platform-mark media" aria-hidden="true">▶</span><h3>عروض ووسائط</h3><p>Lottie · SVG · PNG</p><small>حركة وصور عالية الدقة</small><i aria-hidden="true">←</i></a>
+  </div>
+ </section>
+
+ <section class="lp-cta" aria-labelledby="cta-heading"><div><h2 id="cta-heading">جاهز ترسم مخططك الأول؟</h2><p>افتح المحرر وابدأ من مخطط جاهز. لا حساب ولا تثبيت.</p></div><div class="lp-actions"><a class="lp-btn light" href="#editor">افتح المحرر<i aria-hidden="true">←</i></a><a class="lp-btn outline" href="#docs">التوثيق</a></div></section>
+ <footer class="site-footer lp-footer"><span><b>Flow Studio</b> · محرر مخططات الطاقة</span><nav aria-label="روابط التذييل"><a href="#editor">المحرر</a><a href="#docs">التوثيق</a><a href="#docs/flutter">Flutter</a><a href="#loading">شاشة التحميل</a></nav></footer>
+</main>
+<main id="screen-docs" data-screen="docs" class="docs-screen dc" lang="ar" dir="rtl" hidden aria-labelledby="docs-heading">
+ <aside class="dc-sidebar" aria-label="أقسام التوثيق">
+  <label class="dc-search"><span class="sr-only">ابحث في التوثيق</span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg><input id="docs-search" type="search" placeholder="ابحث في الدليل…" autocomplete="off"></label>
+  <p id="docs-search-empty" class="dc-search-empty" hidden>لا توجد نتائج.</p>
+  <nav class="docs-navigation dc-nav" aria-label="التوثيق"><p class="dc-nav-group">البداية</p><a href="#docs/quickstart" data-doc-link="quickstart"><span class="dc-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>ابدأ هنا</a><a href="#docs/editor" data-doc-link="editor"><span class="dc-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M9 9v11"/></svg></span>دليل المحرر</a><p class="dc-nav-group">الدمج</p><a href="#docs/web" data-doc-link="web"><span class="dc-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13 6l-2 12"/></svg></span>الويب · Next.js · Vue</a><a href="#docs/flutter" data-doc-link="flutter"><span class="dc-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 3 5 12l3 3 9-9h-3ZM8 15l3 3-3 3-3-3Z"/></svg></span>Flutter</a><p class="dc-nav-group">المرجع</p><a href="#docs/api" data-doc-link="api"><span class="dc-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h7"/><circle cx="18" cy="16" r="3"/></svg></span>البيانات والحالات</a><a href="#docs/exports" data-doc-link="exports"><span class="dc-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></span>صيغ التصدير</a></nav>
+  <div class="dc-side-card"><b>ملفان مختلفان</b><p><b dir="ltr">Flow-Studio.html</b> هو المحرر. ملف <b>Export → HTML</b> هو المخطط الذي تضعه في موقعك.</p><a href="#editor" class="lp-btn primary small">افتح المحرر</a></div>
+ </aside>
+ <div class="docs-content dc-content">
+  <header class="dc-hero">
+   <span class="dc-crumb">التوثيق</span>
+   <h1 id="docs-heading" tabindex="-1">استخدم الفلو في مشروعك.</h1>
+   <p>ارسم المخطط، صدّره، ثم أرسل القيم والأسماء والحالات من موقعك أو تطبيق Flutter.</p>
+   <div class="dc-quick">
+    <a href="#docs/quickstart"><span class="dc-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span><b>ابدأ هنا</b><small>من الرسم إلى أول تصدير</small></a>
+    <a href="#docs/flutter"><span class="dc-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 3 5 12l3 3 9-9h-3ZM8 15l3 3-3 3-3-3Z"/></svg></span><b>Flutter</b><small>مكتبة أصلية وكود جاهز</small></a>
+    <a href="#docs/web"><span class="dc-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13 6l-2 12"/></svg></span><b>الويب</b><small>iframe وواجهة JavaScript</small></a>
+    <a href="#docs/api"><span class="dc-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h7"/><circle cx="18" cy="16" r="3"/></svg></span><b>المرجع</b><small>الحالات والمعرّفات</small></a>
+   </div>
+  </header>
+
+  <section id="doc-quickstart" class="doc-section" aria-labelledby="quickstart-heading">
+   <header class="dc-section-head"><span class="dc-eyebrow">01 · البداية</span><h2 id="quickstart-heading" tabindex="-1">ابدأ هنا</h2><p class="dc-lead">أربع خطوات من مساحة فارغة إلى ملف جاهز للاستخدام.</p></header>
+   <ol class="dc-steps">
+    <li><h3>افتح المحرر</h3><p>اختر مخطط Hybrid أو Generator backup أو Solar pump من <b>Starting layout</b>، أو ابدأ من Blank canvas.</p></li>
+    <li><h3>رتّب واربط</h3><p>اسحب العناصر أو صورك إلى المساحة. اضغط <b>Connect</b> (أو حرف <kbd>C</kbd>) ثم العنصر المصدر والهدف.</p></li>
+    <li><h3>أدخل بيانات العرض</h3><p>اختر العنصر لتعديل الاسم والقيمة والوحدة والتيار والكفاءة ونص الحالة من تبويب <b>Data</b>.</p></li>
+    <li><h3>احفظ وصدّر</h3><p><b>Save project</b> يحفظ ملف <code dir="ltr">.flow.json</code> قابلًا لإعادة الفتح. <b>Export</b> ينتج ملفات العرض والكود.</p></li>
+   </ol>
+   <div class="dc-callout info"><span class="dc-callout-icon" aria-hidden="true">i</span><div><b>البيانات مستقلة عن الرسم.</b><p>الحقول تعرض القيم التي ترسلها؛ لا ينفّذ المحرر محاكاة للطاقة. حالات العناصر والخطوط مستقلة أيضًا: إخفاء عنصر لا يخفي خطوطه.</p></div></div>
+  </section>
+
+  <section id="doc-editor" class="doc-section" aria-labelledby="editor-heading">
+   <header class="dc-section-head"><span class="dc-eyebrow">02 · البداية</span><h2 id="editor-heading" tabindex="-1">دليل المحرر</h2><p class="dc-lead">لوحة الخصائص مقسّمة إلى تبويبات. اختر عنصرًا أو خطًا لتظهر إعداداته.</p></header>
+   <h3>خيارات الخطوط</h3>
+   <div class="doc-table-wrap"><table class="doc-table"><thead><tr><th>التبويب</th><th>الإعداد</th><th>ماذا يفعل</th></tr></thead><tbody>
+    <tr><td rowspan="3">Motion</td><td>Direction · Cycle time</td><td>اتجاه الحركة، ومدة الدورة بالثواني (أقل = أسرع).</td></tr>
+    <tr><td>Pulses · Pulse length</td><td>عدد النبضات المتحركة (1–12) وطول كل نبضة.</td></tr>
+    <tr><td>Glow</td><td>قوة التوهج حول النبضة؛ 0% يلغيه.</td></tr>
+    <tr><td rowspan="2">Style</td><td>Pulse / Track color · width</td><td>ألوان وعرض النبضة والخط الأساسي.</td></tr>
+    <tr><td>Track style · Corner radius</td><td>خط متصل أو متقطع أو نقاط، واستدارة الزوايا.</td></tr>
+    <tr><td rowspan="3">Route</td><td>Shape</td><td>زوايا قائمة، مستقيم، أو منحنى ناعم.</td></tr>
+    <tr><td>Start / End · Offset</td><td>جانب الاتصال بكل عنصر، وإزاحة النقطة على طول الجانب.</td></tr>
+    <tr><td>Points</td><td>مسار تلقائي، أو نقاط يدوية تحرّكها أو تكتب إحداثياتها.</td></tr>
+   </tbody></table></div>
+   <h3>استيراد الصور</h3>
+   <p>اسحب الصور إلى المساحة، أو الصقها بـ <kbd dir="ltr">Ctrl/⌘ V</kbd>، أو استخدم <b>Import artwork</b>. يمكن استيراد عدة صور مرة واحدة.</p>
+   <div class="doc-table-wrap"><table class="doc-table"><thead><tr><th>الصيغة</th><th>طريقة الحفظ</th></tr></thead><tbody>
+    <tr><td><code>SVG</code></td><td>متجهة، حادة في أي حجم. يُحذف أي سكربت أو مورد خارجي.</td></tr>
+    <tr><td><code>PNG</code> <code>JPEG</code> <code>WebP</code></td><td>تُحفظ كما هي بدون إعادة ضغط.</td></tr>
+    <tr><td><code>GIF</code> <code>AVIF</code> <code>BMP</code> <code>ICO</code></td><td>تُحوَّل إلى PNG بدون فقد وبدقتها الكاملة. GIF المتحرك يُحفظ كأول إطار.</td></tr>
+    <tr><td><code>TIFF</code> <code>HEIC</code></td><td>متاحة عند فتح المحرر في Safari فقط.</td></tr>
+   </tbody></table></div>
+   <div class="dc-callout tip"><span class="dc-callout-icon" aria-hidden="true">✓</span><div><b>راقب جودة الصورة.</b><p>تبويب <b>Layout</b> يعرض دقة الصورة، وينبّهك إذا لم تكن كافية لتصدير PNG بدقة 3×. استخدم <b>Replace image</b> لاستبدالها دون فقد الإعدادات.</p></div></div>
+   <h3>اختصارات</h3>
+   <dl class="dc-keys">
+    <dt><kbd>C</kbd></dt><dd>ربط عنصرين</dd>
+    <dt><kbd>نقر مزدوج</kbd></dt><dd>على الخط: إضافة نقطة · على النقطة: حذفها</dd>
+    <dt><kbd>← ↑ → ↓</kbd></dt><dd>تحريك العنصر 1px، ومع Shift ‏10px</dd>
+    <dt><kbd dir="ltr">Ctrl/⌘ D</kbd></dt><dd>تكرار العنصر</dd>
+    <dt><kbd dir="ltr">Ctrl/⌘ Z</kbd></dt><dd>تراجع، ومع Shift إعادة</dd>
+    <dt><kbd>Delete</kbd></dt><dd>حذف المحدد</dd>
+   </dl>
+  </section>
+
+  <section id="doc-web" class="doc-section" aria-labelledby="web-heading">
+   <header class="dc-section-head"><span class="dc-eyebrow">03 · الدمج</span><h2 id="web-heading" tabindex="-1">على الويب، أو داخل Next.js وVue</h2><p class="dc-lead">صدّر من <b>Export → HTML</b>، ضع الملف في مجلد الملفات الثابتة، واعرضه في iframe.</p></header>
+   <p>في Next.js أو Vue مع Vite ضع الملف مثلًا في <code dir="ltr">public/flows/hybrid.html</code>. في موقع HTML عادي استخدم رابط الملف الذي رفعته.</p>
+   <div class="code-card"><div class="code-heading"><span>HTML · embed</span><button data-copy="code-web-embed">نسخ</button></div><pre><code id="code-web-embed" dir="ltr">&lt;iframe
+  id="energy-flow"
+  src="/flows/hybrid.html"
+  title="Energy flow"
+  style="width:100%;aspect-ratio:1000/650;border:0"
+&gt;&lt;/iframe&gt;</code></pre></div>
+   <p>بعد تحميل الملف، استدعِ واجهة التحكم من الصفحة الأم:</p>
+   <div class="code-card"><div class="code-heading"><span>JavaScript · live data</span><button data-copy="code-web-data">نسخ</button></div><pre><code id="code-web-data" dir="ltr">const frame = document.getElementById('energy-flow');
+
+frame.addEventListener('load', () =&gt; {
+  const flow = frame.contentWindow.energyFlow;
+
+  flow.setNodeData('inverter', {
+    name: 'الإنفرتر الرئيسي',
+    value: 5.2,
+    unit: 'kW',
+    current: 23.6,
+    currentUnit: 'A',
+    efficiency: 96.8,
+    status: 'يعمل',
+    showDetails: true
+  });
+
+  flow.setNodeState('inverter', 'active');
+  flow.setFlowState('solar', 'active');
+});</code></pre></div>
+   <div class="dc-callout warn"><span class="dc-callout-icon" aria-hidden="true">!</span><div><b>نفس الـ origin.</b><p>الوصول إلى <code>contentWindow</code> يتطلب أن تكون الصفحة وملف الفلو من نفس النطاق. في Next.js نفّذ الكود في جانب المتصفح؛ وفي Vue بعد تحميل العنصر.</p></div></div>
+   <p class="doc-source">المراجع: <a href="https://nextjs.org/docs/app/api-reference/file-conventions/public-folder" target="_blank" rel="noopener noreferrer">Next.js public</a> · <a href="https://vite.dev/guide/assets.html#the-public-directory" target="_blank" rel="noopener noreferrer">Vite public assets</a></p>
+  </section>
+
+  <section id="doc-flutter" class="doc-section" aria-labelledby="flutter-heading">
+   <header class="dc-section-head"><span class="dc-eyebrow">04 · الدمج</span><h2 id="flutter-heading" tabindex="-1">Flutter على Android وiOS</h2><p class="dc-lead">مكتبة <code dir="ltr">flow_studio</code> ترسم المخطط داخل التطبيق مباشرة، بنفس المسارات والحركة والصور والتسميات.</p></header>
+   <div class="dc-tabs" role="tablist" aria-label="طريقة الدمج"><button role="tab" aria-selected="true" aria-controls="flutter-native" data-doc-tab="flutter-native">مكتبة Flutter <small>موصى به</small></button><button role="tab" aria-selected="false" aria-controls="flutter-webview" data-doc-tab="flutter-webview">WebView</button></div>
+   <div id="flutter-native" role="tabpanel" class="dc-tabpanel">
+    <ol class="dc-steps compact">
+     <li><h3>صدّر</h3><p>من المحرر اختر <b>Export → Flutter (native)</b>. يُحفظ ملف المشروع ويظهر كود Dart كامل بأسماء عناصرك.</p></li>
+     <li><h3>أضف الملف والمكتبة</h3><p>ضع الملف في <code dir="ltr">assets</code> وأضفهما إلى <code>pubspec.yaml</code>.</p></li>
+     <li><h3>الصق الكود وحدّث القيم</h3><p>نفس أوامر HTML: الحالات، القيم، الاتجاه، الإيقاف والتشغيل.</p></li>
+    </ol>
+    <div class="code-card"><div class="code-heading"><span>pubspec.yaml</span><button data-copy="code-flutter-assets">نسخ</button></div><pre><code id="code-flutter-assets" dir="ltr">dependencies:
+  flow_studio:
+    path: ../flow_studio  # packages/flow_studio from this project
+
+flutter:
+  assets:
+    - assets/hybrid.flow.json</code></pre></div>
+    <div class="code-card"><div class="code-heading"><span>Dart · native widget</span><button data-copy="code-flutter-widget">نسخ</button></div><pre><code id="code-flutter-widget" dir="ltr">import 'package:flow_studio/flow_studio.dart';
+
+// 1. Load the exported project.
+final flow = FlowController.asset('assets/hybrid.flow.json');
+
+// 2. Show it — keeps the canvas aspect ratio.
+FlowStudioView(
+  controller: flow,
+  onNodeTap: (node) =&gt; print(node.id),
+)
+
+// 3. Update live data at any time.
+flow.setNodeData('inverter',
+  name: 'الإنفرتر الرئيسي',
+  value: 5.2,
+  unit: 'kW',
+  current: 23.6,
+  efficiency: 96.8,
+  status: 'يعمل',
+  showDetails: true,
+);
+flow.setNodeState('grid', FlowState.inactive);
+flow.setFlowState('grid', FlowState.hidden);
+flow.setFlowDirection('battery', -1);
+flow.pause(); // flow.play();
+
+// Or several values at once (same shape as the HTML event):
+flow.applyData({
+  'nodes': {'solar': {'value': 8.7, 'unit': 'kW'}},
+  'flows': {'solar': 'active', 'grid': 'inactive'},
+});</code></pre></div>
+    <div class="dc-callout tip"><span class="dc-callout-icon" aria-hidden="true">✓</span><div><b>مطابقة التصميم.</b><p>المسارات مطابقة لمحرك المحرر حرفيًا، والفرق مع صورة PNG المصدَّرة أقل من 0.3% من البكسلات (حواف الحروف فقط). على Android ضمّن خط Arial أو Arimo مع خط عربي ومرّره عبر <code dir="ltr">FlowTextStyle</code>.</p></div></div>
+   </div>
+   <div id="flutter-webview" role="tabpanel" class="dc-tabpanel" hidden>
+    <p>إذا كنت تفضّل ملف HTML المصدَّر، اعرضه بـ <code>webview_flutter</code> وأرسل البيانات بـ <code>runJavaScript</code>:</p>
+    <div class="code-card"><div class="code-heading"><span>Dart · WebView</span><button data-copy="code-flutter-webview">نسخ</button></div><pre><code id="code-flutter-webview" dir="ltr">// flutter pub add webview_flutter
+final controller = WebViewController()
+  ..setJavaScriptMode(JavaScriptMode.unrestricted)
+  ..loadFlutterAsset('assets/flows/hybrid.html');
+
+// After the page finishes loading:
+controller.runJavaScript(
+  "energyFlow.setNodeData('inverter', ${jsonEncode({'value': 5.2})});",
+);
+
+WebViewWidget(controller: controller)</code></pre></div>
+   </div>
+   <p class="doc-source">مصدر المكتبة ومثال تطبيق كامل في <code dir="ltr">packages/flow_studio</code>.</p>
+  </section>
+
+  <section id="doc-api" class="doc-section" aria-labelledby="api-heading">
+   <header class="dc-section-head"><span class="dc-eyebrow">05 · المرجع</span><h2 id="api-heading" tabindex="-1">البيانات، الأسماء، والحالات</h2><p class="dc-lead"><code dir="ltr">status</code> هو نص الحالة المعروض مثل «يعمل». أما حالة الظهور فتُرسل إلى <code dir="ltr">setNodeState</code> أو <code dir="ltr">setFlowState</code>.</p></header>
+   <div class="dc-states">
+    <div><span class="dc-state active"></span><b dir="ltr">active</b><p>العنصر ظاهر بالكامل، والخط يتحرك.</p></div>
+    <div><span class="dc-state inactive"></span><b dir="ltr">inactive</b><p>العنصر باهت، والخط ظاهر بدون حركة.</p></div>
+    <div><span class="dc-state hidden"></span><b dir="ltr">hidden</b><p>مخفي بالكامل.</p></div>
+   </div>
+   <div class="code-card"><div class="code-heading"><span>JavaScript · controls</span><button data-copy="code-api-controls">نسخ</button></div><pre><code id="code-api-controls" dir="ltr">energyFlow.setNodeState('battery', 'inactive');
+energyFlow.setFlowState('grid', 'hidden');
+
+// 1: source → target | -1: target → source
+energyFlow.setFlowDirection('battery', -1);
+
+energyFlow.pause();
+energyFlow.play();
+
+// Read IDs, positions, values and states
+const project = energyFlow.getProject();</code></pre></div>
+   <h3>إرسال مجموعة تحديثات</h3><p>أرسل بيانات عدة عناصر وحالات الخطوط في حدث واحد داخل صفحة الفلو. في Flutter استخدم <code dir="ltr">flow.applyData</code> بنفس الشكل.</p>
+   <div class="code-card"><div class="code-heading"><span>JavaScript · event payload</span><button data-copy="code-api-event">نسخ</button></div><pre><code id="code-api-event" dir="ltr">window.dispatchEvent(new CustomEvent('energy-flow-data', {
+  detail: {
+    nodes: {
+      solar: { name: 'الألواح', value: 7.2, unit: 'kW' },
+      battery: { value: 2.1, unit: 'kW', status: 'يشحن' }
+    },
+    flows: {
+      solar: 'active',
+      battery: 'active',
+      grid: 'inactive'
+    }
+  }
+}));</code></pre></div>
+   <h3>معرّفات مشروعك الحالي</h3><p>العناصر والخطوط الموجودة الآن في المحرر. استخدم المعرّف، لا الاسم.</p><div class="doc-table-wrap"><table class="doc-table"><thead><tr><th>النوع</th><th>الاسم</th><th>المعرّف ID</th></tr></thead><tbody id="docs-project-ids"></tbody></table></div>
+   <div class="dc-callout warn"><span class="dc-callout-icon" aria-hidden="true">!</span><div><b>الاسم ليس هو المعرّف.</b><p>تغيير اسم العنصر لا يغيّر <code>id</code>. إضافة عناصر أو تغيير المخطط قد ينتج معرّفات مختلفة.</p></div></div>
+  </section>
+
+  <section id="doc-exports" class="doc-section" aria-labelledby="exports-heading">
+   <header class="dc-section-head"><span class="dc-eyebrow">06 · المرجع</span><h2 id="exports-heading" tabindex="-1">اختر صيغة التصدير المناسبة</h2><p class="dc-lead">كل الصيغ تستخدم نفس الإحداثيات ومسارات Bézier.</p></header>
+   <div class="dc-formats">
+    <article><span class="dc-format live">HTML</span><h3>ويب وWebView</h3><p>حركة وواجهة تحكم كاملة.</p><small class="yes">بيانات حية</small></article>
+    <article><span class="dc-format live">Flutter</span><h3>تطبيقات Flutter</h3><p>رسم أصلي مع كود Dart جاهز.</p><small class="yes">بيانات حية</small></article>
+    <article><span class="dc-format">SVG</span><h3>مخطط متجه</h3><p>مسارات متحركة وصور مضمّنة.</p><small>لقطة من البيانات</small></article>
+    <article><span class="dc-format">PNG</span><h3>صورة عالية الدقة</h3><p>1× أو 2× أو 3× عند وقت محدد.</p><small>لقطة ثابتة</small></article>
+    <article><span class="dc-format">Lottie</span><h3>مشغلات Lottie</h3><p>حركة متصلة، التسميات صور مضمّنة.</p><small>لقطة من البيانات</small></article>
+    <article><span class="dc-format">.flow.json</span><h3>ملف المشروع</h3><p>لإعادة الفتح والتعديل في المحرر.</p><small>قابل للتحرير</small></article>
+   </div>
+   <div class="dc-callout info"><span class="dc-callout-icon" aria-hidden="true">i</span><div><b>قبل التصدير.</b><p>تأكد أن كل المحتوى داخل المساحة (<b>Canvas settings → Fit canvas to content</b>). الخلفية الشفافة متاحة لـ SVG وPNG وLottie. للحلقة المتصلة في Lottie استخدم نفس مدة الدورة لكل الخطوط.</p></div></div>
+   <div class="dc-final"><div><h3>جاهز ترسم مخططك؟</h3><p>ارجع للمحرر؛ بيانات مشروعك تبقى كما هي أثناء التنقّل.</p></div><a class="lp-btn primary" href="#editor">افتح المحرر<i aria-hidden="true">←</i></a></div>
+  </section>
+  <footer class="site-footer lp-footer"><span><b>Flow Studio</b> · التوثيق</span><nav aria-label="روابط التذييل"><a href="#home">الرئيسية</a><a href="#editor">المحرر</a></nav></footer>
+ </div>
+</main>
+
+<section id="screen-editor" data-screen="editor" hidden aria-label="Flow editor"><main class="workspace">
+ <aside class="library-panel" aria-label="Elements and layers">
+  <div class="panel-tabs" role="tablist" aria-label="Library"><button role="tab" id="tab-elements" aria-selected="true" aria-controls="pane-elements" data-tab="elements">Elements</button><button role="tab" id="tab-layers" aria-selected="false" aria-controls="pane-layers" data-tab="layers">Layers <span id="layer-count" class="count"></span></button></div>
+  <div class="panel-scroll">
+   <div id="pane-elements" role="tabpanel" aria-labelledby="tab-elements" class="tab-pane">
+    <div id="palette" class="palette"></div>
+    <button id="import-asset" class="dropzone" type="button"><span class="dropzone-icon" aria-hidden="true">⤒</span><b>Import artwork</b><small>Drop, paste or browse · SVG, PNG, JPEG, WebP, GIF, AVIF, BMP, ICO</small></button>
+    <div id="custom-assets-wrap" hidden><h3 class="pane-heading">Your artwork</h3><div id="custom-assets" class="palette"></div></div>
+    <h3 class="pane-heading">Starting layout</h3>
+    <div class="row-control"><select id="preset" aria-label="Starting layout"><option value="hybrid">Hybrid energy flow</option><option value="generator">Hybrid + generator backup</option><option value="pump">Solar pump flow</option><option value="blank">Blank canvas</option></select><button id="apply-preset">Load</button></div>
+   </div>
+   <div id="pane-layers" role="tabpanel" aria-labelledby="tab-layers" class="tab-pane" hidden>
+    <div id="layers" class="layer-list"></div>
+    <p class="pane-help">Click a dot to switch <b>Active → Inactive → Hidden</b>.</p>
+   </div>
+  </div>
+ </aside>
+ <section class="center-panel">
+  <div class="canvas-tools" role="toolbar" aria-label="Canvas tools">
+   <div class="tool-group"><input id="project-title" class="title-input" aria-label="Project name" value="Hybrid energy flow"></div>
+   <div class="tool-group"><button id="undo" class="icon" title="Undo (Ctrl/⌘ Z)" aria-label="Undo">↶</button><button id="redo" class="icon" title="Redo (Ctrl/⌘ Shift Z)" aria-label="Redo">↷</button><span class="tool-separator"></span><button id="connect" title="Connect two elements (C)" aria-pressed="false">↗ Connect</button><button id="motion" aria-pressed="true">Ⅱ Pause</button><span class="tool-separator"></span><label class="check"><input id="snap" type="checkbox" checked> Snap</label><label class="check"><input id="show-grid" type="checkbox"> Grid</label><span class="tool-separator"></span><div class="zoom-control"><button id="zoom-out" class="icon" aria-label="Zoom out">−</button><select id="zoom" aria-label="Canvas zoom"><option value="0.5">50%</option><option value="0.75">75%</option><option value="1" selected>Fit</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option><option value="3">300%</option></select><button id="zoom-in" class="icon" aria-label="Zoom in">+</button></div></div>
+  </div>
+  <div class="stage-scroll" id="stage-scroll"><div class="stage-size" id="stage-size"><svg id="canvas" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 650" aria-label="Editable energy flow diagram"></svg></div><div class="drop-overlay" id="drop-overlay" hidden><span>Drop images to add them</span></div></div>
+  <div class="canvas-footer"><span id="canvas-info">1000 × 650</span><span id="hint">Select an element or a line to edit.</span><button id="settings">Canvas settings</button></div>
+ </section>
+ <aside class="inspector-panel" aria-labelledby="inspector-title">
+  <div class="inspector-head"><div class="inspector-heading"><span id="inspector-kind" class="kind-badge">Canvas</span><h2 id="inspector-title">Canvas settings</h2><p id="inspector-subtitle">Size, background and project layout.</p></div><div id="inspector-actions" class="head-actions"></div></div>
+  <div id="inspector-tabs" class="panel-tabs" role="tablist" aria-label="Property groups"></div>
+  <div class="panel-scroll"><div id="inspector"></div></div>
+ </aside>
+</main></section>
+<noscript><p class="no-script" lang="ar" dir="rtl">فعّل JavaScript لفتح المحرر وصفحات المشروع.</p></noscript>
+<div id="toast" role="status" aria-live="polite"></div>
+<dialog id="flutter-dialog" class="code-dialog">
+ <div class="dialog-head"><div><span class="eyebrow">FLUTTER · ANDROID · IOS · WEB · DESKTOP</span><h2>Use it in Flutter</h2></div><button data-close="flutter-dialog" aria-label="Close">×</button></div>
+ <p class="dialog-note">Your project file is downloaded. Put it in your app's <code>assets</code> folder and paste the code below. The <code>flow_studio</code> package draws the same routes, motion, artwork and labels natively — no WebView.</p>
+ <div class="code-card"><div class="code-heading"><span>pubspec.yaml</span><button data-copy="flutter-pubspec">Copy</button></div><pre><code id="flutter-pubspec" dir="ltr"></code></pre></div>
+ <div class="code-card"><div class="code-heading"><span>Dart</span><button data-copy="flutter-dart">Copy</button></div><pre><code id="flutter-dart" dir="ltr"></code></pre></div>
+</dialog>
+<dialog id="export-dialog">
+ <div class="dialog-head"><div><span class="eyebrow">READY TO USE</span><h2>Export your flow</h2></div><button data-close="export-dialog" aria-label="Close">×</button></div>
+ <p class="dialog-note">The same positions, artwork, routes and states as your canvas. Every asset is embedded.</p>
+ <div class="export-options">
+ <button data-export="html"><span class="file-badge blue">HTML</span><div><b>Standalone animated HTML</b><small>Offline file + JavaScript control API</small></div><span>↗</span></button>
+ <button data-export="svg"><span class="file-badge purple">SVG</span><div><b>Animated SVG</b><small>Scalable routes + embedded artwork</small></div><span>↗</span></button>
+ <button data-export="png"><span class="file-badge green">PNG</span><div><b>High resolution image</b><small>Snapshot at the chosen frame</small></div><span>↗</span></button>
+ <button data-export="lottie"><span class="file-badge orange">JSON</span><div><b>Lottie animation</b><small>Vector routes + embedded artwork and label images</small></div><span>↗</span></button>
+ <button data-export="flutter"><span class="file-badge cyan">DART</span><div><b>Flutter (native)</b><small>Project file + ready code for the flow_studio package</small></div><span>↗</span></button>
+ <button data-export="project"><span class="file-badge gray">FLOW</span><div><b>Editable project JSON</b><small>Reopen and continue editing</small></div><span>↗</span></button>
+ </div>
+ <div class="export-settings"><label class="field">PNG resolution<select id="png-scale"><option value="1">1×</option><option value="2" selected>2×</option><option value="3">3×</option></select></label><label class="field">Snapshot frame (seconds)<input id="snapshot-time" type="number" value="0.75" min="0" max="20" step="0.05"></label></div>
+ <label class="check"><input id="transparent" type="checkbox"> Transparent background (SVG / PNG / Lottie)</label>
+ <p class="fine-print">Lottie is a snapshot of the data and states at export. Dynamic data controls are included in HTML. Labels are embedded as images in Lottie for consistent fonts, including Arabic.</p>
+</dialog>
+<dialog id="confirm-dialog"><div class="dialog-head"><h2>Load layout?</h2><button data-close="confirm-dialog" aria-label="Close">×</button></div><p>This replaces the current canvas. Save the project first if you need a separate copy. You can also undo this change.</p><div class="dialog-actions"><button data-close="confirm-dialog">Cancel</button><button id="confirm-layout" class="primary">Load layout</button></div></dialog>
+<input id="project-file" type="file" accept=".json,application/json" hidden><input id="asset-file" type="file" multiple accept="image/*,.svg,.png,.apng,.jpg,.jpeg,.jfif,.webp,.gif,.avif,.bmp,.ico,.cur,.tif,.tiff,.heic,.heif" hidden>
+<script src="assets-data.js"></script><script src="core.js"></script><script src="app.js"></script><script src="screens.js"></script>
+</body></html>
