@@ -49,6 +49,8 @@ const draw=fn=>{const c=I.init(CW,CH,U,OX,OY);fn();return c;};
 const RESC=await new Promise(r=>{const im=new Image();im.onload=()=>r(im);im.src=window.__resc;});
 I.init(CW,CH,U,OX,OY);const cablePx=Object.fromEntries(Object.entries(CABLES).map(([k,pts])=>[k,pts.map(q=>I.P(...q))]));
 const canv={base:draw(base)};for(const k in parts)canv[k]=draw(parts[k]);
+/* the base again with the lights on (ISO.lit), for the lit-window overlay */
+I.lit=true;const litBase=draw(base);I.lit=false;
 const bbox=c=>{const d=c.getContext('2d').getImageData(0,0,CW,CH).data;let x0=CW,y0=CH,x1=0,y1=0;for(let y=0;y<CH;y++)for(let x=0;x<CW;x++)if(d[(y*CW+x)*4+3]>6){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}return[x0,y0,x1+1,y1+1];};
 const boxes={};for(const k in canv)boxes[k]=bbox(canv[k]);
 /* the house image covers every part so attached parts always sit inside it */
@@ -64,6 +66,8 @@ out.cables=Object.fromEntries(Object.entries(cablePx).map(([k,pts])=>[k,pts.map(
 const P=document.createElement('canvas');P.width=Math.round(W*scale)*2+60;P.height=Math.round(Hh*scale)+40;const pg=P.getContext('2d');pg.fillStyle='#fff';pg.fillRect(0,0,P.width,P.height);
 pg.drawImage(crop(canv.base,U0),20,20);const all=crop(canv.base,U0);const ag=all.getContext('2d');for(const k in parts)ag.drawImage(crop(canv[k],U0),0,0);{const k=scale;for(const pts of Object.values(cablePx)){ag.strokeStyle='#4d73ef';ag.lineWidth=3;ag.lineJoin='round';ag.beginPath();pts.forEach(([x,y],i)=>{const X=(x-U0[0])*k,Y=(y-U0[1])*k;i?ag.lineTo(X,Y):ag.moveTo(X,Y);});ag.stroke();}}
 pg.drawImage(all,Math.round(W*scale)+40,20);
-window.__site={parts:out,preview:P.toDataURL('image/png').split(',')[1]};
+/* lights-on overlay: same canvas, same U0 crop and scale as the base image */
+const LT=crop(I.overlay(canv.base,litBase),U0),lblob=await new Promise(res=>LT.toBlob(res,'image/webp',.93)),lit={webp:await b64(lblob),w:LT.width,h:LT.height,size:lblob.size,preview:I.onWhite(crop(canv.base,U0),LT)};
+window.__site={parts:out,lit,preview:P.toDataURL('image/png').split(',')[1]};
 return {cables:out.cables,...Object.fromEntries(Object.entries(out).filter(([k])=>k!=='cables').map(([k,v])=>[k,[v.w,v.h,Math.round(v.size/1024)+'KB',v.slot]]))};
 })()

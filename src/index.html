@@ -37,7 +37,7 @@
     <p class="lp-lead">ارسم تدفّق الطاقة بين الألواح والبطارية والإنفرتر والشبكة، وتحكّم في كل خط ونبضة. ثم صدّره للويب أو لتطبيق Flutter بنفس الجودة تمامًا.</p>
     <div class="lp-actions"><a class="lp-btn primary" href="#editor">ابدأ الرسم الآن<i aria-hidden="true">←</i></a><a class="lp-btn ghost" href="#docs/quickstart">اقرأ الدليل</a></div>
     <ul class="lp-proof">
-     <li><b>6</b><span>صيغ تصدير جاهزة</span></li>
+     <li><b>5</b><span>صيغ تصدير جاهزة</span></li>
      <li><b dir="ltr">0.3%</b><span>فرق بكسل بين الويب وFlutter</span></li>
      <li><b>0</b><span>إنترنت أو تثبيت مطلوب</span></li>
     </ul>
@@ -53,7 +53,7 @@
   </div>
  </section>
 
- <section class="lp-formats" aria-label="صيغ التصدير"><span>صدّر إلى</span><ul dir="ltr"><li>HTML</li><li>Flutter</li><li>SVG</li><li>PNG 3×</li><li>Lottie</li><li>.flow.json</li></ul></section>
+ <section class="lp-formats" aria-label="صيغ التصدير"><span>صدّر إلى</span><ul dir="ltr"><li>HTML</li><li>Flutter</li><li>SVG</li><li>PNG 3×</li><li>.flow.json</li></ul></section>
 
  <section class="lp-section" aria-labelledby="features-heading">
   <div class="lp-heading"><span class="lp-kicker">كل ما تحتاجه</span><h2 id="features-heading">مصمَّم ليعرض الطاقة بوضوح.</h2><p>من أول خط ترسمه إلى آخر قيمة تصل من جهازك، كل جزء قابل للتحكم.</p></div>
@@ -109,7 +109,7 @@ energyFlow.<span class="tok-fn">setFlowDirection</span>(<span class="tok-str">'b
   <div class="lp-platforms">
    <a href="#docs/flutter" class="lp-platform"><span class="lp-platform-mark flutter" aria-hidden="true">F</span><h3>Flutter</h3><p>Android · iOS · Web · Desktop</p><small>رسم أصلي بمكتبة flow_studio</small><i aria-hidden="true">←</i></a>
    <a href="#docs/web" class="lp-platform"><span class="lp-platform-mark web" aria-hidden="true">&lt;/&gt;</span><h3>الويب</h3><p>HTML · Next.js · Vue</p><small>iframe وواجهة JavaScript</small><i aria-hidden="true">←</i></a>
-   <a href="#docs/exports" class="lp-platform"><span class="lp-platform-mark media" aria-hidden="true">▶</span><h3>عروض ووسائط</h3><p>Lottie · SVG · PNG</p><small>حركة وصور عالية الدقة</small><i aria-hidden="true">←</i></a>
+   <a href="Flow-Viewer.html" class="lp-platform"><span class="lp-platform-mark media" aria-hidden="true">▶</span><h3>عارض الملفات</h3><p>Flow Viewer · SVG · PNG</p><small>اعرض ملفات .flow.json بملء الشاشة</small><i aria-hidden="true">←</i></a>
   </div>
  </section>
 
@@ -161,6 +161,16 @@ energyFlow.<span class="tok-fn">setFlowDirection</span>(<span class="tok-str">'b
     <tr><td>Points</td><td>في الخط المتعرّج اسحب مقبض أي جزء لتحريكه وتبقى الزوايا قائمة. في المستقيم والمنحنى اسحب كل زاوية بحرية. أو اكتب الإحداثيات.</td></tr>
    </tbody></table></div>
    <h3>العناصر الجاهزة</h3><p>مكتبة <b>Elements</b> تضم: صفوف ألواح (Solar array)، لوح منفرد، منزل بألواح على السطح (Solar home)، مدرسة بفناء ومظلة ألواح (School)، مصنع بسطح ألواح (Factory)، البطارية، الإنفرتر، برج الشبكة، عمود كهرباء بمحوّل (Utility pole)، الحمل، مولد الديزل، المضخة، ونقطة التقاء. كلها رسومات متناسقة بخلفية شفافة. جرّب <b>Starting layout</b>: Solar home system أو School solar system أو Factory with generator backup.</p>
+   <h3>شكل لوحة المتابعة (Dashboard)</h3>
+   <div class="doc-table-wrap"><table class="doc-table"><thead><tr><th>الميزة</th><th>من أين</th><th>الوصف</th></tr></thead><tbody>
+    <tr><td>Callout + leader</td><td>Label → Style</td><td>القيمة بجانب العنصر مع خط منقّط يصل إليه. اسحب التسمية على المساحة لتحريكها. زر <b>Dashboard labels</b> في تبويب Parts يرتّبها تلقائيًا.</td></tr>
+    <tr><td>Battery level</td><td>Data → Live visuals</td><td>نسبة الشحن بجوار الاسم وشريط يتلوّن: أخضر ≥ 50٪، برتقالي ≥ 20٪، أحمر أقل.</td></tr>
+    <tr><td>Status badge</td><td>Label → Status badge</td><td>شارة مثل Charging أو Importing بخمسة ألوان.</td></tr>
+    <tr><td>Lights on</td><td>Data → Live visuals</td><td>إضاءة نوافذ المنزل أثناء الاستهلاك (للعناصر التي لها طبقة إضاءة).</td></tr>
+    <tr><td>Tile</td><td>Layout → Base</td><td>منصة أيزومترية تحت العنصر لتصميم بالبلاطات.</td></tr>
+    <tr><td>Theme · Scene · Header</td><td>Canvas</td><td>فاتح أو داكن، خلفية نهار/غروب/ليل/مطر، وشريط علوي بالحالة والطقس والحرارة وآخر تحديث.</td></tr>
+    <tr><td>Line colors</td><td>Line → Style → Quick color</td><td>ألوان جاهزة حسب المعنى: شمسي، شحن، استيراد، تصدير، خامل.</td></tr>
+   </tbody></table></div>
    <h3>منزل بأجزاء قابلة للإضافة</h3><p>العنصر <b>House + parts</b> منزل له أماكن ثابتة: السطح للألواح، الحائط للإنفرتر، والفناء للبطارية ولعمود الكهرباء. اختر المنزل ثم تبويب <b>Parts</b> وفعّل أو ألغِ كل جزء. كل جزء عنصر مستقل له معرّف وقيم وحالة يمكن تحديثها من تطبيقك، ويتحرك ويكبر مع المنزل. الخطوط بين الأجزاء تُضاف تلقائيًا وتُرسم فوق المنزل (خيار <code dir="ltr">onTop</code>). جرّب <b>Starting layout → Home with roof solar &amp; yard parts</b>.</p>
    <h3>استيراد الصور</h3>
    <p>اسحب الصور إلى المساحة، أو الصقها بـ <kbd dir="ltr">Ctrl/⌘ V</kbd>، أو استخدم <b>Import artwork</b>. يمكن استيراد عدة صور مرة واحدة.</p>
@@ -297,6 +307,14 @@ energyFlow.setFlowDirection('battery', -1);
 energyFlow.pause();
 energyFlow.play();
 
+// Dashboard: battery level, status badge, lit windows
+energyFlow.setNodeData('battery', { soc: 48, badge: 'Charging', badgeTone: 'green' });
+energyFlow.setNodeData('home', { lit: true });
+energyFlow.setFlowColor('grid', '#f2a541', '#f6dcb4');
+energyFlow.setHeader({ status: 'Online', weather: 'sun', temperature: '29°C', updated: 'Last update 12:40' });
+energyFlow.setScene('night');   // none | day | dusk | night | rain
+energyFlow.setTheme('dark');    // light | dark
+
 // Read IDs, positions, values and states
 const project = energyFlow.getProject();</code></pre></div>
    <h3>إرسال مجموعة تحديثات</h3><p>أرسل بيانات عدة عناصر وحالات الخطوط في حدث واحد داخل صفحة الفلو. في Flutter استخدم <code dir="ltr">flow.applyData</code> بنفس الشكل.</p>
@@ -324,10 +342,10 @@ const project = energyFlow.getProject();</code></pre></div>
     <article><span class="dc-format live">Flutter</span><h3>تطبيقات Flutter</h3><p>رسم أصلي مع كود Dart جاهز.</p><small class="yes">بيانات حية</small></article>
     <article><span class="dc-format">SVG</span><h3>مخطط متجه</h3><p>مسارات متحركة وصور مضمّنة.</p><small>لقطة من البيانات</small></article>
     <article><span class="dc-format">PNG</span><h3>صورة عالية الدقة</h3><p>1× أو 2× أو 3× عند وقت محدد.</p><small>لقطة ثابتة</small></article>
-    <article><span class="dc-format">Lottie</span><h3>مشغلات Lottie</h3><p>حركة متصلة، التسميات صور مضمّنة.</p><small>لقطة من البيانات</small></article>
+    
     <article><span class="dc-format">.flow.json</span><h3>ملف المشروع</h3><p>لإعادة الفتح والتعديل في المحرر.</p><small>قابل للتحرير</small></article>
    </div>
-   <div class="dc-callout info"><span class="dc-callout-icon" aria-hidden="true">i</span><div><b>قبل التصدير.</b><p>تأكد أن كل المحتوى داخل المساحة (<b>Canvas settings → Fit canvas to content</b>). الخلفية الشفافة متاحة لـ SVG وPNG وLottie. للحلقة المتصلة في Lottie استخدم نفس مدة الدورة لكل الخطوط.</p></div></div>
+   <div class="dc-callout info"><span class="dc-callout-icon" aria-hidden="true">i</span><div><b>قبل التصدير.</b><p>تأكد أن كل المحتوى داخل المساحة (<b>Canvas settings → Fit canvas to content</b>). الخلفية الشفافة متاحة لـ SVG وPNG. لعرض أي ملف <code dir="ltr">.flow.json</code> بملء الشاشة استخدم <b>Flow-Viewer.html</b>.</p></div></div>
    <div class="dc-final"><div><h3>جاهز ترسم مخططك؟</h3><p>ارجع للمحرر؛ بيانات مشروعك تبقى كما هي أثناء التنقّل.</p></div><a class="lp-btn primary" href="#editor">افتح المحرر<i aria-hidden="true">←</i></a></div>
   </section>
   <footer class="site-footer lp-footer"><span><b>Flow Studio</b> · التوثيق</span><nav aria-label="روابط التذييل"><a href="#home">الرئيسية</a><a href="#editor">المحرر</a></nav></footer>
@@ -386,13 +404,12 @@ const project = energyFlow.getProject();</code></pre></div>
  <button data-export="html"><span class="file-badge blue">HTML</span><div><b>Standalone animated HTML</b><small>Offline file + JavaScript control API</small></div><span>↗</span></button>
  <button data-export="svg"><span class="file-badge purple">SVG</span><div><b>Animated SVG</b><small>Scalable routes + embedded artwork</small></div><span>↗</span></button>
  <button data-export="png"><span class="file-badge green">PNG</span><div><b>High resolution image</b><small>Snapshot at the chosen frame</small></div><span>↗</span></button>
- <button data-export="lottie"><span class="file-badge orange">JSON</span><div><b>Lottie animation</b><small>Vector routes + embedded artwork and label images</small></div><span>↗</span></button>
  <button data-export="flutter"><span class="file-badge cyan">DART</span><div><b>Flutter (native)</b><small>Project file + ready code for the flow_studio package</small></div><span>↗</span></button>
  <button data-export="project"><span class="file-badge gray">FLOW</span><div><b>Editable project JSON</b><small>Reopen and continue editing</small></div><span>↗</span></button>
  </div>
  <div class="export-settings"><label class="field">PNG resolution<select id="png-scale"><option value="1">1×</option><option value="2" selected>2×</option><option value="3">3×</option></select></label><label class="field">Snapshot frame (seconds)<input id="snapshot-time" type="number" value="0.75" min="0" max="20" step="0.05"></label></div>
- <label class="check"><input id="transparent" type="checkbox"> Transparent background (SVG / PNG / Lottie)</label>
- <p class="fine-print">Lottie is a snapshot of the data and states at export. Dynamic data controls are included in HTML. Labels are embedded as images in Lottie for consistent fonts, including Arabic.</p>
+ <label class="check"><input id="transparent" type="checkbox"> Transparent background (SVG / PNG)</label>
+ <p class="fine-print">HTML and Flutter keep live data controls. SVG and PNG are snapshots of the current data.</p>
 </dialog>
 <dialog id="confirm-dialog"><div class="dialog-head"><h2>Load layout?</h2><button data-close="confirm-dialog" aria-label="Close">×</button></div><p>This replaces the current canvas. Save the project first if you need a separate copy. You can also undo this change.</p><div class="dialog-actions"><button data-close="confirm-dialog">Cancel</button><button id="confirm-layout" class="primary">Load layout</button></div></dialog>
 <input id="project-file" type="file" accept=".json,application/json" hidden><input id="asset-file" type="file" multiple accept="image/*,.svg,.png,.apng,.jpg,.jpeg,.jfif,.webp,.gif,.avif,.bmp,.ico,.cur,.tif,.tiff,.heic,.heif" hidden>

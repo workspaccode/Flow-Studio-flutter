@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flow Viewer — عارض المخططات</title>
+<meta name="description" content="اعرض ملفات Flow Studio بملء الشاشة مع الحركة والبيانات الحية.">
+<link rel="stylesheet" href="viewer.css">
+</head>
+<body>
+<header class="vw-bar">
+ <a class="vw-brand" href="Flow-Studio.html" title="افتح المحرر"><span class="vw-mark" aria-hidden="true">↯</span><span><b>Flow Viewer</b><small>Flow Studio</small></span></a>
+ <div class="vw-title"><b id="vw-name">لا يوجد ملف</b><small id="vw-meta" dir="ltr"></small></div>
+ <div class="vw-actions">
+  <button id="vw-open" class="primary">فتح ملفات</button>
+  <button id="vw-present" title="عرض بملء الشاشة (F)">عرض</button>
+ </div>
+</header>
+<main class="vw-main">
+ <aside class="vw-side" aria-label="الملفات">
+  <h2>الملفات <span id="vw-count" class="vw-count">0</span></h2>
+  <ul id="vw-list" class="vw-list"></ul>
+  <button id="vw-demo" class="vw-ghost">إضافة مخطط تجريبي</button>
+  <p class="vw-hint">اسحب ملفات <code dir="ltr">.flow.json</code> إلى الصفحة، أو استخدم «فتح ملفات». الملفات تُعرض على جهازك فقط.</p>
+ </aside>
+ <section class="vw-stage-wrap">
+  <div id="vw-stage" class="vw-stage" aria-live="polite">
+   <div id="vw-empty" class="vw-empty">
+    <span class="vw-empty-icon" aria-hidden="true">⤒</span>
+    <h1>اعرض مخططاتك</h1>
+    <p>افتح ملف <code dir="ltr">.flow.json</code> المحفوظ من المحرر، أو اسحبه هنا. يمكنك فتح عدة ملفات والتنقل بينها.</p>
+    <div class="vw-empty-actions"><button id="vw-open2" class="primary">فتح ملفات</button><button id="vw-demo2">مخطط تجريبي</button></div>
+   </div>
+   <div id="vw-canvas" class="vw-canvas" hidden></div>
+   <div id="vw-drop" class="vw-drop" hidden><span>أفلت الملفات للعرض</span></div>
+  </div>
+  <div class="vw-controls" role="toolbar" aria-label="التحكم في العرض">
+   <button id="vw-prev" title="السابق (←)" aria-label="السابق">→</button>
+   <button id="vw-play" aria-pressed="true">إيقاف الحركة</button>
+   <button id="vw-next" title="التالي (→)" aria-label="التالي">←</button>
+   <span class="vw-sep"></span>
+   <label class="vw-check"><input id="vw-live" type="checkbox"> بيانات تجريبية حية</label>
+   <label class="vw-check"><input id="vw-auto" type="checkbox"> تنقّل تلقائي</label>
+   <select id="vw-auto-time" aria-label="مدة كل شريحة"><option value="6">6 ث</option><option value="10" selected>10 ث</option><option value="20">20 ث</option></select>
+   <span class="vw-sep"></span>
+   <select id="vw-theme" aria-label="السمة"><option value="">سمة الملف</option><option value="light">فاتح</option><option value="dark">داكن</option></select>
+   <select id="vw-scene" aria-label="المشهد"><option value="">مشهد الملف</option><option value="none">بدون</option><option value="day">نهار</option><option value="dusk">غروب</option><option value="night">ليل</option><option value="rain">مطر</option></select>
+   <span class="vw-sep"></span>
+   <button id="vw-png">حفظ صورة PNG</button>
+  </div>
+ </section>
+</main>
+<input id="vw-file" type="file" accept=".json,application/json" multiple hidden>
+<div id="vw-toast" role="status" aria-live="polite"></div>
+<script src="viewer-data.js"></script>
+<script src="core.js"></script>
+<script src="viewer.js"></script>
+</body>
+</html>

@@ -27,7 +27,7 @@ function val(item,key){return item[key]??EDGE_DEFAULTS[key];}
 function refresh(){commit();draw();inspect();}
 /* Everything visible that extends past the canvas edges, with how far it goes. */
 function overflow(p=project){const out=[],check=(name,x0,y0,x1,y1)=>{const sides=[['left',-x0],['top',-y0],['right',x1-p.width],['bottom',y1-p.height]].filter(([,d])=>d>.5).map(([side,d])=>`${Math.ceil(d)}px ${side}`);if(sides.length)out.push({name,sides});};
- for(const n of p.nodes){if(n.state==='hidden')continue;check(`${n.name||n.id}`,n.x-n.w/2,n.y-n.h/2,n.x+n.w/2,n.y+n.h/2);const b=F.labelBox(n);if(b.lines.length)check(`${n.name||n.id} — label`,b.x,b.y,b.x+b.width,b.y+b.height);}
+ for(const n of p.nodes){if(n.state==='hidden')continue;check(`${n.name||n.id}`,n.x-n.w/2,n.y-n.h/2,n.x+n.w/2,n.y+n.h/2);const b=F.labelBox(n,p);if(b.lines.length)check(`${n.name||n.id} — label`,b.x-(b.leader?8:0),b.y,b.x+b.width,b.y+b.height);}
  for(const e of p.edges){if(e.state==='hidden')continue;const sh=F.shape(p,e),pad=e.width*1.4;let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;sh.v.forEach((v,j)=>{for(const q of [v,[v[0]+sh.o[j][0],v[1]+sh.o[j][1]],[v[0]+sh.i[j][0],v[1]+sh.i[j][1]]]){x0=Math.min(x0,q[0]-pad);y0=Math.min(y0,q[1]-pad);x1=Math.max(x1,q[0]+pad);y1=Math.max(y1,q[1]+pad);}});if(sh.v.length)check(`Line ${e.name||e.id}`,x0,y0,x1,y1);}
  return out;}
 /* Enlarges the canvas just enough (20px margin) and never shrinks it; content moves only when it is past the left or top edge. */
@@ -84,7 +84,7 @@ function inspect(){
  $('inspector-kind').textContent={canvas:'Canvas',node:'Element',edge:'Line'}[type];$('inspector-kind').dataset.kind=type;
  const actions=$('inspector-actions');
  if(!item){$('inspector-title').textContent='Canvas settings';$('inspector-subtitle').textContent=`${project.nodes.length} elements · ${project.edges.length} lines`;actions.innerHTML='';
-  host.innerHTML=tab==='canvas'?group('',text('Project name','title',project.title)+pair(number('Width','width',project.width,{min:100,max:4096,step:1,unit:'px'}),number('Height','height',project.height,{min:100,max:4096,step:1,unit:'px'}))+color('Background','background',project.background))+group('Fit',`<button id="fit-content" class="wide">Fit canvas to content</button>`,'Moves everything inside the canvas with a 20px margin. Exports need all content inside.')
+  host.innerHTML=tab==='canvas'?group('',text('Project name','title',project.title)+pair(number('Width','width',project.width,{min:100,max:4096,step:1,unit:'px'}),number('Height','height',project.height,{min:100,max:4096,step:1,unit:'px'}))+color('Background','background',project.background))+group('Appearance',segmented('Theme','theme',project.theme||'light',[['light','Light'],['dark','Dark']])+segmented('Scene','scene',project.scene||'none',[['none','None'],['day','Day'],['dusk','Dusk'],['night','Night'],['rain','Rain']]))+group('Header',toggle('Show header','headerOn',!!project.header,'Status, weather and last update at the top')+(project.header?text('Title','header.title',project.header.title||'','placeholder="My Home"')+pair(text('Status','header.status',project.header.status||'','placeholder="Online"'),text('Temperature','header.temperature',project.header.temperature||'','placeholder="26°C"'))+segmented('Status color','header.statusTone',project.header.statusTone||'green',[['green','Green'],['blue','Blue'],['amber','Amber'],['red','Red'],['gray','Gray']])+segmented('Weather','header.weather',project.header.weather||'',[['','None'],['sun','☀︎'],['cloud','☁︎'],['rain','Rain'],['night','☾']])+text('Last update','header.updated',project.header.updated||'','placeholder="Last update 22:15"'):''),'Leave about 70px free at the top of the canvas for the header.')+group('Fit',`<button id="fit-content" class="wide">Fit canvas to content</button>`,'Moves everything inside the canvas with a 20px margin. Exports need all content inside.')
    :group('Editing',`<dl class="keys"><dt>C</dt><dd>Connect two elements</dd><dt>Double-click line</dt><dd>Add a route point</dd><dt>Double-click point</dt><dd>Remove it</dd><dt>← ↑ → ↓</dt><dd>Nudge element (Shift = 10px)</dd><dt>Ctrl/⌘ D</dt><dd>Duplicate element</dd><dt>Delete</dt><dd>Remove selection</dd><dt>Ctrl/⌘ Z</dt><dd>Undo · Shift for redo</dd><dt>Ctrl/⌘ V</dt><dd>Paste an image</dd><dt>Esc</dt><dd>Cancel / deselect</dd></dl>`);
   const fit=$('fit-content');if(fit)fit.onclick=()=>{F.fit(project);refresh();toast('Canvas resized to fit the diagram');};
  }else if(type==='node'){
@@ -92,14 +92,19 @@ function inspect(){
   actions.innerHTML=`<button id="duplicate" class="icon" title="Duplicate (Ctrl/⌘ D)" aria-label="Duplicate">${ICONS.copy}</button><button id="remove" class="icon danger" title="Delete (Delete key)" aria-label="Delete">${ICONS.trash}</button>`;
   const state=segmented('Visibility','state',item.state,[['active','Active'],['inactive','Inactive'],['hidden','Hidden']]);
   if(tab==='data')host.innerHTML=group('',state+text('Name','name',item.name)+pair(number('Value','value',item.value),text('Unit','unit',item.unit))+text('Status text','status',item.status,'placeholder="e.g. Charging"'))
+   +group('Live visuals',toggle('Battery level (SOC)','socOn',item.soc!=null&&item.soc!=='','Fill bar and % next to the name')+(item.soc!=null&&item.soc!==''?slider('Charge','soc',Number(item.soc),{min:0,max:100,step:1,unit:'%'}):'')+((project.assets[item.kind]||BUILTINS[item.kind])?.lit?toggle('Lights on','lit',!!item.lit,'Lit windows while the home uses power'):''))
    +group('Details',toggle('Show current & efficiency','showDetails',item.showDetails)+pair(number('Current','current',item.current),text('Current unit','currentUnit',item.currentUnit))+number('Efficiency','efficiency',item.efficiency,{min:0,max:100,unit:'%'}));
-  if(tab==='label')host.innerHTML=group('',toggle('Show label','showLabel',item.showLabel!==false)+segmented('Position','labelSide',item.labelSide,[['top','Top'],['bottom','Bottom'],['left','Left'],['right','Right']])+slider('Gap','labelGap',item.labelGap,{min:0,max:200,step:1,unit:'px'})+slider('Font size','fontSize',item.fontSize,{min:8,max:60,step:1,unit:'px'})+color('Value color','color',item.color));
-  if(tab==='parts'){const slots=slotsOf(item);host.innerHTML=group('Parts',Object.entries(slots).map(([slot,sl])=>{const part=partIn(item,slot),d=PART[slot]||{label:slot};return`<div class="part-row"><img alt="" src="${esc((project.assets[sl.kind]||BUILTINS[sl.kind]).src)}"><div><b>${esc(d.label)}</b><small>${part?`id <code>${esc(part.id)}</code>`:'Not added'}</small></div>${part?`<button data-edit-part="${esc(part.id)}">Edit</button>`:''}<label class="toggle compact"><input type="checkbox" data-part="${slot}" ${part?'checked':''} aria-label="${esc(d.label)}"><span class="switch" aria-hidden="true"></span></label></div>`;}).join(''),'Each part is its own element with live data. Lines between the parts are added automatically and drawn over the house.');
+  if(tab==='label')host.innerHTML=group('',toggle('Show label','showLabel',item.showLabel!==false)+segmented('Style','labelStyle',item.callout?'callout':'beside',[['beside','Beside'],['callout','Callout + leader']])+(item.callout?segmented('Leader points to','calloutTarget',!item.calloutTarget?'center':item.calloutTarget[1]<0?'top':'bottom',[['center','Center'],['top','Top'],['bottom','Bottom']])+`<p class="group-note">Drag the label on the canvas to place it.</p>`:segmented('Position','labelSide',item.labelSide,[['top','Top'],['bottom','Bottom'],['left','Left'],['right','Right']])+slider('Gap','labelGap',item.labelGap,{min:0,max:200,step:1,unit:'px'}))+slider('Font size','fontSize',item.fontSize,{min:8,max:60,step:1,unit:'px'})+color('Value color','color',item.color))
+   +group('Status badge',text('Badge text','badge',item.badge||'','placeholder="Charging, Standby, Importing…"')+(item.badge?segmented('Badge color','badgeTone',item.badgeTone||'gray',[['green','Green'],['blue','Blue'],['amber','Amber'],['red','Red'],['gray','Gray']]):''));
+  if(tab==='parts'){const slots=slotsOf(item);host.innerHTML=group('Parts',Object.entries(slots).map(([slot,sl])=>{const part=partIn(item,slot),d=PART[slot]||{label:slot};return`<div class="part-row"><img alt="" src="${esc((project.assets[sl.kind]||BUILTINS[sl.kind]).src)}"><div><b>${esc(d.label)}</b><small>${part?`id <code>${esc(part.id)}</code>`:'Not added'}</small></div>${part?`<button data-edit-part="${esc(part.id)}">Edit</button>`:''}<label class="toggle compact"><input type="checkbox" data-part="${slot}" ${part?'checked':''} aria-label="${esc(d.label)}"><span class="switch" aria-hidden="true"></span></label></div>`;}).join('')+`<button id="arrange-callouts" class="wide">Dashboard labels</button>`,'Each part is its own element with live data. Lines between the parts are added automatically and drawn over the house. Dashboard labels puts every value beside the house with a leader line.');
+   $('arrange-callouts').onclick=()=>{F.arrangeCallouts(project,item.id);refresh();toast('Labels arranged · drag any label to fine-tune');};
    host.querySelectorAll('[data-part]').forEach(c=>c.onchange=()=>{const slot=c.dataset.part;if(c.checked){const n=addPart(item,slot);if(n)toast(`${n.name} added · id ${n.id}`);}else{const part=partIn(item,slot);if(part)removeNodes(new Set([part.id]));}refresh();});
    host.querySelectorAll('[data-edit-part]').forEach(b=>b.onclick=()=>select('node',b.dataset.editPart));}
-  if(tab==='layout'&&item.attach){const h=hostOf(item);host.innerHTML=group('Attached',`<div class="asset-card"><img src="${esc(project.assets[item.kind]?.src||'')}" alt=""><div><b>Part of ${esc(h?.name||item.attach.to)}</b><small>Moves and scales with it · slot <code>${esc(item.attach.slot)}</code></small></div></div><div class="button-row"><button id="select-host">Select ${esc(h?.name||'host')}</button><button id="detach-part">Detach</button></div>`,'Detached parts become free elements you can move on their own.');
+  if(tab==='layout'&&item.attach){const h=hostOf(item);host.innerHTML=group('Attached',`<div class="asset-card"><img src="${esc(project.assets[item.kind]?.src||'')}" alt=""><div><b>Part of ${esc(h?.name||item.attach.to)}</b><small>Moves and scales with it · slot <code>${esc(item.attach.slot)}</code></small></div></div><div class="button-row"><button id="select-host">Select ${esc(h?.name||'host')}</button><button id="detach-part">Detach</button></div>`,'Detached parts become free elements you can move on their own.')+group('Size',slider('Part size','partScale',Math.round(partScale(item)*100),{min:50,max:250,step:5,unit:'%'})+`<button id="reset-part-size" class="wide">Reset to 100%</button>`,'Lines to this part follow its new size.');
+   $('reset-part-size').onclick=()=>{delete item.attach.scale;layoutParts(hostOf(item));refresh();};
    $('select-host').onclick=()=>select('node',item.attach.to);$('detach-part').onclick=()=>{delete item.attach;refresh();toast('Part detached');};}
   else if(tab==='layout')host.innerHTML=group('Artwork',assetInfo(item)+`<div class="button-row"><button id="replace-art">Replace image…</button><button id="native-ratio" title="Match the image's aspect ratio">Fit image ratio</button></div>`)
+   +group('Base',toggle('Isometric tile','tile',!!item.tile,'A platform under the element, for tile-style dashboards'))
    +group('Position',pair(number('X','x',item.x,{step:1,unit:'px'}),number('Y','y',item.y,{step:1,unit:'px'}))+`<div class="button-row"><button data-center="x">Center horizontally</button><button data-center="y">Center vertically</button></div>`)
    +group('Size',pair(number('Width','w',item.w,{min:1,max:4096,step:1,unit:'px'}),number('Height','h',item.h,{min:1,max:4096,step:1,unit:'px'}))+`<label class="toggle"><input id="lock-ratio" type="checkbox" ${lockRatio?'checked':''}><span class="switch" aria-hidden="true"></span><span>Lock aspect ratio</span></label>`);
   $('duplicate').onclick=duplicate;$('remove').onclick=remove;
@@ -112,8 +117,8 @@ function inspect(){
   actions.innerHTML=`<button id="remove" class="icon danger" title="Delete line" aria-label="Delete line">${ICONS.trash}</button>`;$('remove').onclick=remove;
   const nodes=project.nodes.map(n=>[n.id,n.name||n.id]);
   if(tab==='motion')host.innerHTML=group('',segmented('Visibility','state',item.state,[['active','Active'],['inactive','Inactive'],['hidden','Hidden']])+segmented('Direction','direction',item.direction,[[1,'Source → target'],[-1,'Target → source']]))
-   +group('Pulse',slider('Cycle time','duration',item.duration,{min:.5,max:20,step:.1,unit:'s'})+slider('Pulses','pulses',val(item,'pulses'),{min:1,max:12,step:1})+slider('Pulse length','pulseLength',val(item,'pulseLength'),{min:2,max:90,step:1,unit:'%',scale:100})+slider('Glow','glow',val(item,'glow'),{min:0,max:100,step:1,unit:'%',scale:100}),'Shorter cycle time = faster motion. Use the same cycle time on every line for a seamless Lottie loop.');
-  if(tab==='style')host.innerHTML=group('Pulse',color('Pulse color','color',item.color)+slider('Pulse width','width',item.width,{min:.5,max:30,step:.5,unit:'px'}))
+   +group('Pulse',slider('Cycle time','duration',item.duration,{min:.5,max:20,step:.1,unit:'s'})+slider('Pulses','pulses',val(item,'pulses'),{min:1,max:12,step:1})+slider('Pulse length','pulseLength',val(item,'pulseLength'),{min:2,max:90,step:1,unit:'%',scale:100})+slider('Glow','glow',val(item,'glow'),{min:0,max:100,step:1,unit:'%',scale:100}),'Shorter cycle time = faster motion. ');
+  if(tab==='style')host.innerHTML=group('Quick color',`<div class="tone-row">${LINE_TONES.map(([k,label,c])=>`<button data-line-tone="${k}" style="--c:${c}" title="${label}"><i></i>${label}</button>`).join('')}</div>`)+group('Pulse',color('Pulse color','color',item.color)+slider('Pulse width','width',item.width,{min:.5,max:30,step:.5,unit:'px'}))
    +group('Track',color('Track color','trackColor',item.trackColor)+slider('Track width','trackWidth',item.trackWidth,{min:.5,max:30,step:.1,unit:'px'})+segmented('Track style','trackStyle',val(item,'trackStyle'),[['solid','Solid'],['dashed','Dashed'],['dotted','Dotted']]))
    +group('Corners',slider('Corner radius','radius',item.radius,{min:0,max:100,step:1,unit:'px'}));
   if(tab==='route'){const pts=item.auto?[]:item.waypoints;
@@ -145,16 +150,29 @@ const partsOf=host=>project.nodes.filter(n=>n.attach?.to===host.id);
 const partIn=(host,slot)=>project.nodes.find(n=>n.attach?.to===host.id&&n.attach.slot===slot);
 const hostOf=n=>n?.attach?project.nodes.find(h=>h.id===n.attach.to):null;
 function layoutParts(host){const slots=slotsOf(host),a=project.assets[host.kind];if(!slots||!a)return;const k=Math.min(host.w/a.width,host.h/a.height),iw=a.width*k,ih=a.height*k,left=host.x-iw/2,top=host.y-ih/2;
- for(const n of partsOf(host)){const sl=slots[n.attach.slot];if(!sl)continue;n.w=Math.max(1,r2(sl.w*iw));n.h=Math.max(1,r2(sl.h*ih));n.x=r2(left+(sl.x+sl.w/2)*iw);n.y=r2(top+(sl.y+sl.h/2)*ih);
+ for(const n of partsOf(host)){const sl=slots[n.attach.slot];if(!sl)continue;const k=partScale(n),cx=left+(sl.x+sl.w/2)*iw,cy=top+(sl.y+sl.h/2)*ih,bh=sl.h*ih;
+  n.w=Math.max(1,r2(sl.w*iw*k));n.h=Math.max(1,r2(bh*k));n.x=r2(cx);n.y=r2(GROUND_SLOTS.has(n.attach.slot)?cy+bh/2-bh*k/2:cy);
   /* until the user moves it, a part's label sits just outside the house on the part's side */
   if(n.attach.autoLabel){const gap={left:n.x-n.w/2-left,right:left+iw-(n.x+n.w/2),top:n.y-n.h/2-top,bottom:top+ih-(n.y+n.h/2)}[n.labelSide];if(gap!==undefined)n.labelGap=Math.max(4,Math.min(200,Math.round(gap+10)));}}
  layoutCables(host);}
 /* Lines between parts follow cable paths stored on the host asset ({"from>to": [[x,y]…]} as fractions of
    its image): the ends become anchors on the parts, the middle points become waypoints. A line keeps
    following its path (cable:{host,link}) until the user edits its route. */
+/* Part size relative to its slot (attach.scale, 0.5–2.5). Ground parts grow upwards from their base. */
+const GROUND_SLOTS=new Set(['battery','pole']);
+const partScale=n=>Math.max(.5,Math.min(2.5,Number(n.attach?.scale)||1));
+/* Where a point drawn for the slot ends up once the part is scaled. */
+function scalePoint(n,pt,f){const sl=slotsOf(nodeById(n.attach.to))?.[n.attach.slot];const k=partScale(n);if(!sl||k===1)return pt;
+ const cx=f.left+(sl.x+sl.w/2)*f.iw,cy=f.top+(sl.y+sl.h/2)*f.ih,oy=GROUND_SLOTS.has(n.attach.slot)?cy+sl.h*f.ih/2:cy;return[cx+(pt[0]-cx)*k,oy+(pt[1]-oy)*k];}
 function hostFrame(host){const a=project.assets[host.kind],k=Math.min(host.w/a.width,host.h/a.height),iw=a.width*k,ih=a.height*k;return{iw,ih,left:host.x-iw/2,top:host.y-ih/2};}
 function layoutCables(host){const cables=(project.assets[host.kind]||BUILTINS[host.kind])?.cables;if(!cables)return;const f=hostFrame(host),at=([x,y])=>[r2(f.left+x*f.iw),r2(f.top+y*f.ih)];
- for(const e of project.edges){if(e.cable?.host!==host.id)continue;const path=cables[e.cable.link],a=nodeById(e.from),b=nodeById(e.to);if(!path||!a||!b)continue;const pts=path.map(at),s=pts[0],t=pts.at(-1);
+ for(const e of project.edges){if(e.cable?.host!==host.id)continue;const path=cables[e.cable.link],a=nodeById(e.from),b=nodeById(e.to);if(!path||!a||!b)continue;const pts=path.map(at);
+  /* ends follow scaled parts; the neighbouring corner keeps the run straight (vertical or horizontal) */
+  const fix=(i,j,n)=>{const old=pts[i],q=scalePoint(n,old,f);if(pts[j]&&j>0&&j<pts.length-1){const c=pts[j];
+   /* vertical run: corner follows x; if the end moved past the corner, the corner moves to the end so the run never doubles back */
+   if(Math.abs(c[0]-old[0])<1)pts[j]=[q[0],Math.sign(old[1]-c[1])!==Math.sign(q[1]-c[1])?q[1]:c[1]];
+   else if(Math.abs(c[1]-old[1])<1)pts[j]=[Math.sign(old[0]-c[0])!==Math.sign(q[0]-c[0])?q[0]:c[0],q[1]];}pts[i]=q.map(r2);};
+  fix(0,1,a);fix(pts.length-1,pts.length-2,b);const s=pts[0],t=pts.at(-1);
   e.sourceAnchor=[r2(s[0]-a.x),r2(s[1]-a.y)];e.targetAnchor=[r2(t[0]-b.x),r2(t[1]-b.y)];e.waypoints=pts.slice(1,-1);e.auto=false;}}
 const unmanage=e=>{if(e?.cable)delete e.cable;};
 /* Facing sides for a line between two boxes. */
@@ -171,7 +189,23 @@ function removeNodes(ids){project.nodes=project.nodes.filter(n=>!ids.has(n.id));
 function autoEdges(n){layoutParts(n);for(const m of [n,...partsOf(n)])for(const e of project.edges)if((e.from===m.id||e.to===m.id)&&!e.cable){e.auto=true;delete e.sourceAnchor;delete e.targetAnchor;}}
 function toManual(e){if(!e.auto)return;e.waypoints=F.points(project,e).slice(1,-1).map(p=>p.map(Math.round));e.auto=false;}
 /* Applies an inspector value; live updates redraw without a history step. */
+/* Line colours by meaning: [key, label, pulse, track]. */
+const LINE_TONES=[['solar','Solar','#6688ff','#c9d7ff'],['charge','Charging','#2fb07a','#bfe8d4'],['import','Import','#f2a541','#f6dcb4'],['export','Export','#8b6cf0','#d9cffb'],['idle','Idle','#9aa6b8','#dfe4ec']];
+/* Inspector keys that are not plain properties. */
+function applyVirtual(key,value,input){const item=findSelected();
+ if(key==='headerOn'){if(input.checked)project.header=project.header||{title:project.title,status:'Online',statusTone:'green',weather:'sun',temperature:'',updated:''};else delete project.header;return true;}
+ if(key.startsWith('header.')){project.header=project.header||{};const k=key.slice(7);if(value==='')delete project.header[k];else project.header[k]=value;return true;}
+ if(key==='theme'){const was=project.theme||'light';project.theme=value;if(value==='dark'&&project.background.toLowerCase()==='#ffffff')project.background='#0f1726';if(value==='light'&&was==='dark'&&project.background.toLowerCase()==='#0f1726')project.background='#ffffff';return true;}
+ if(!item)return false;
+ if(key==='labelStyle'){if(value==='callout'){const b=F.labelBox(item,project);item.callout={dx:Math.round(b.x-item.x+12),dy:Math.round(b.y-item.y)};}else{delete item.callout;delete item.calloutTarget;}return true;}
+ if(key==='calloutTarget'){if(value==='center')delete item.calloutTarget;else item.calloutTarget=[0,value==='top'?-item.h/2:item.h/2];return true;}
+ if(key==='socOn'){if(input.checked)item.soc=item.soc??60;else delete item.soc;return true;}
+ if(key==='badge'&&String(value).trim()===''){delete item.badge;delete item.badgeTone;return true;}
+ if((key==='lit'||key==='tile')&&input&&!input.checked){delete item[key];return true;}
+ return false;}
 function apply(key,raw,live,input){
+ if(key==='partScale'){const item=findSelected(),h=hostOf(item);if(!item?.attach||!h)return;const v=Math.max(50,Math.min(250,Number(raw)||100))/100;if(v===1)delete item.attach.scale;else item.attach.scale=v;layoutParts(h);if(live){draw();for(const t of $('inspector').querySelectorAll('[data-prop=partScale]'))if(t!==input)t.value=Math.round(v*100);}else refresh();return;}
+ if(!live&&applyVirtual(key,input?.type==='checkbox'?input.checked:raw,input||{})){try{F.validate({...project,assets:{}});}catch(e){toast(e.message);}refresh();return;}
  const item=findSelected(),target=item||project,old=target[key];let value=raw;
  if(input?.type==='checkbox')value=input.checked;
  else if(input?.dataset.hex!==undefined){value=String(raw).trim();if(!value.startsWith('#'))value='#'+value;if(!/^#[\da-f]{6}$/i.test(value)){if(!live){toast('Use a hex color like #6688ff');inspect();}return;}value=value.toLowerCase();}
@@ -196,11 +230,11 @@ function apply(key,raw,live,input){
 }
 $('inspector').addEventListener('input',e=>{const t=e.target;if(t.dataset.prop&&(t.type==='range'||t.type==='color'||t.dataset.hex!==undefined))apply(t.dataset.prop,t.value,true,t);});
 $('inspector').addEventListener('change',e=>{const t=e.target;if(t.dataset.prop)apply(t.dataset.prop,t.value,false,t);});
-$('inspector').addEventListener('click',e=>{const b=e.target.closest('[data-seg],[data-swatch]');if(!b)return;const key=b.dataset.seg||b.dataset.swatch;let v=b.dataset.value;if(key==='direction')v=Number(v);apply(key,v,false,null);});
+$('inspector').addEventListener('click',e=>{const tone=e.target.closest('[data-line-tone]');if(tone){const item=findSelected(),t=LINE_TONES.find(x=>x[0]===tone.dataset.lineTone);if(item&&t){item.color=t[2];item.trackColor=t[3];refresh();}return;}const b=e.target.closest('[data-seg],[data-swatch]');if(!b)return;const key=b.dataset.seg||b.dataset.swatch;let v=b.dataset.value;if(key==='direction')v=Number(v);apply(key,v,false,null);});
 
 /* ---------- Elements and artwork ---------- */
-const NAMES={solar:'Solar array',panel:'Single panel','solar-home':'Solar home','house-site':'House + parts',school:'School',factory:'Factory',battery:'Battery',inverter:'Inverter','resc-inverter':'RESC inverter',grid:'Grid','utility-pole':'Utility pole',home:'Load',generator:'Generator',pump:'Pump',junction:'Junction','roof-solar':'Roof solar','wall-inverter':'Wall inverter','yard-battery':'Yard battery','yard-pole':'Yard pole'};
-function addElement(kind,at,name){if(project.nodes.length>=100){toast('Maximum 100 elements');return null;}const a=project.assets[kind],id=unique(kind.startsWith('custom-')?'element':kind,project.nodes);let w=kind==='junction'?8:kind==='battery'?90:kind==='grid'?95:kind==='solar'?210:kind==='house-site'?440:['solar-home','school','factory'].includes(kind)?240:kind==='utility-pole'?80:kind==='resc-inverter'?120:150,h=w*a.height/a.width;const maxH=kind==='house-site'?340:['solar-home','school','factory'].includes(kind)?200:180;if(h>maxH){w*=maxH/h;h=maxH;}w=Math.round(w);h=Math.round(h);
+const NAMES={solar:'Solar array',panel:'Single panel','solar-home':'Solar home','modern-home':'Modern home','house-site':'House + parts',school:'School',factory:'Factory',battery:'Battery',inverter:'Inverter','resc-inverter':'RESC inverter',grid:'Grid','utility-pole':'Utility pole','smart-meter':'Smart meter','ev-charger':'EV charger',home:'Load',generator:'Generator',pump:'Pump',junction:'Junction','roof-solar':'Roof solar','wall-inverter':'Wall inverter','yard-battery':'Yard battery','yard-pole':'Yard pole'};
+function addElement(kind,at,name){if(project.nodes.length>=100){toast('Maximum 100 elements');return null;}const a=project.assets[kind],id=unique(kind.startsWith('custom-')?'element':kind,project.nodes);let w=kind==='junction'?8:kind==='battery'?90:kind==='grid'?95:kind==='solar'?210:kind==='house-site'?440:['solar-home','modern-home','school','factory'].includes(kind)?240:kind==='ev-charger'?190:kind==='smart-meter'?90:kind==='utility-pole'?80:kind==='resc-inverter'?120:150,h=w*a.height/a.width;const maxH=kind==='house-site'?340:['solar-home','modern-home','school','factory'].includes(kind)?200:180;if(h>maxH){w*=maxH/h;h=maxH;}w=Math.round(w);h=Math.round(h);
  const x=Math.max(w/2,Math.min(project.width-w/2,at?.x??project.width/2)),y=Math.max(h/2,Math.min(project.height-h/2,at?.y??project.height/2));
  const n=F.node(id,kind,name||(kind==='house-site'?'Home':NAMES[kind])||'Custom element',Math.round(x),Math.round(y),w,h,{showLabel:kind!=='junction',...(kind==='house-site'?{value:3,status:'Home load',labelGap:4}:{})});project.nodes.push(n);selection={type:'node',id};return n;}
 function tile(kind,name,src,onclick){const b=document.createElement('button');b.className='palette-item';b.title=`Add ${name}`;b.innerHTML=`<img alt="" src="${src}"><span>${esc(name)}</span>`;b.onclick=onclick;return b;}
@@ -323,6 +357,8 @@ $('canvas').addEventListener('pointerdown',e=>{
  if(e.button!==0)return;
  if(linking?.mode==='click'){linking.cursor=coord(e);linking.snap=snapTarget(linking.cursor,linking.fixed);finishLink();return;}
  const dbl=doubleTap(e),segEl=e.target.closest('[data-segment]'),portEl=e.target.closest('[data-port]'),endEl=e.target.closest('[data-endpoint]'),handle=e.target.closest('[data-waypoint]'),ng=e.target.closest('[data-node]'),eg=e.target.closest('[data-edge]');
+ const calloutEl=e.target.closest('[data-callout]');
+ if(calloutEl&&!connectMode){const n=nodeById(calloutEl.dataset.callout),pt=coord(e);if(selection?.type!=='node'||selection.id!==n.id)select('node',n.id);drag={type:'callout',id:n.id,px:pt.x,py:pt.y,dx:n.callout.dx,dy:n.callout.dy,moved:false};$('canvas').setPointerCapture(e.pointerId);e.preventDefault();return;}
  if(segEl){const edge=findSelected();toManual(edge);const pts=F.points(project,edge);let i=Number(segEl.dataset.segment),a=i-1,b=i;const o=orient(pts[i],pts[i+1]);
   /* A neighbouring run in the same direction would turn diagonal: split it with a new corner first. */
   if(orient(pts[i-1],pts[i])===o){edge.waypoints.splice(a,0,[...edge.waypoints[a]]);a++;b++;}
@@ -341,6 +377,7 @@ $('canvas').addEventListener('pointermove',e=>{
  if(linking){const p=coord(e);linking.cursor={x:p.x,y:p.y,cx:e.clientX,cy:e.clientY};linking.snap=snapTarget(p,linking.fixed);draw();return;}
  if(!drag)return;const p=coord(e);
  if(drag.type==='node'){const n=nodeById(drag.id),x=snapped(p.x-drag.dx),y=snapped(p.y-drag.dy);if(n.x!==x||n.y!==y){n.x=Math.max(n.w/2,Math.min(project.width-n.w/2,x));n.y=Math.max(n.h/2,Math.min(project.height-n.h/2,y));autoEdges(n);drag.moved=true;}}
+ else if(drag.type==='callout'){const n=nodeById(drag.id),r=v=>snap?Math.round(v/5)*5:Math.round(v);n.callout={dx:r(drag.dx+p.x-drag.px),dy:r(drag.dy+p.y-drag.py)};drag.moved=true;}
  else if(drag.type==='segment'){const edge=project.edges.find(e=>e.id===drag.id),v=snapped(drag.axis?p.y:p.x);edge.waypoints[drag.a][drag.axis]=v;edge.waypoints[drag.b][drag.axis]=v;drag.moved=true;}
  else{const edge=project.edges.find(e=>e.id===drag.id);edge.waypoints[drag.index]=[snapped(p.x),snapped(p.y)];drag.moved=true;}
  draw();
@@ -367,7 +404,6 @@ async function exported(format,options={}){const p=portableProject();F.validate(
  if(format==='project'||format==='flutter')return new Blob([JSON.stringify(p,null,2)],{type:'application/json'});
  if(format==='svg')return new Blob([F.serialize(F.render(p,opts))],{type:'image/svg+xml'});
  if(format==='html')return new Blob([F.standalone(p)],{type:'text/html'});
- if(format==='lottie'){const data=await F.lottie(p,opts);return new Blob([JSON.stringify(data)],{type:'application/json'});}
  if(format==='png'){const scale=options.scale??Number($('png-scale').value),canvas=await F.raster(F.render(p,{...opts,animate:false}),p.width,p.height,scale);return await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('PNG conversion failed')),'image/png'));}
  throw new Error('Unknown export format');
 }
@@ -408,7 +444,7 @@ ${updates.join('\n')||'    // Add elements in Flow Studio to get their ids here.
  return{pubspec,dart:dartCode};}
 function showFlutterCode(file){const code=flutterCode(file);$('flutter-pubspec').textContent=code.pubspec;$('flutter-dart').textContent=code.dart;$('export-dialog').close();$('flutter-dialog').showModal();}
 let pendingExport=null;
-async function runExport(kind,options={}){const button=q(`[data-export="${kind}"]`),old=button.innerHTML;button.disabled=true;try{const blob=await exported(kind,options);const ext={html:'.html',svg:'.svg',png:'.png',lottie:'.lottie.json',project:'.flow.json',flutter:'.flow.json'}[kind];download(blob,filename()+ext);if(kind==='flutter'){showFlutterCode(filename()+ext);return;}toast(kind==='lottie'?'Lottie exported with embedded artwork and labels':kind.toUpperCase()+' exported');}catch(e){toast('Export failed: '+e.message);}finally{button.disabled=false;button.innerHTML=old;}}
+async function runExport(kind,options={}){const button=q(`[data-export="${kind}"]`),old=button.innerHTML;button.disabled=true;try{const blob=await exported(kind,options);const ext={html:'.html',svg:'.svg',png:'.png',project:'.flow.json',flutter:'.flow.json'}[kind];download(blob,filename()+ext);if(kind==='flutter'){showFlutterCode(filename()+ext);return;}toast(kind.toUpperCase()+' exported');}catch(e){toast('Export failed: '+e.message);}finally{button.disabled=false;button.innerHTML=old;}}
 document.querySelectorAll('[data-export]').forEach(b=>b.onclick=()=>{const kind=b.dataset.export,over=kind==='project'?[]:overflow(portableProject());if(!over.length){runExport(kind);return;}
  pendingExport=kind;$('overflow-list').innerHTML=over.map(o=>`<li><b>${esc(o.name)}</b><span>${o.sides.join(' · ')}</span></li>`).join('');$('overflow-dialog').showModal();});
 $('overflow-grow').onclick=()=>{$('overflow-dialog').close();const before=`${project.width} × ${project.height}`;grow();refresh();toast(`Canvas enlarged from ${before} to ${project.width} × ${project.height} · Undo with Ctrl/⌘ Z`);if(pendingExport)runExport(pendingExport);};
