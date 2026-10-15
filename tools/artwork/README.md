@@ -15,6 +15,7 @@ boxes, roofs, windows, cylinders, foliage, PV modules, soft shadows).
 | `ev-charger.js` | `ev-charger` |
 | `smart-meter.js` | `smart-meter` |
 | `modern-home.js` | `modern-home` |
+| `villa-site.js` | `villa-site` (+ `villa-site-lit`) + parts `villa-roof-solar`, `villa-inverter`, `villa-meter`, `villa-battery` |
 
 Each scene runs in a browser page after `iso.js` and ends with `ISO.export(canvas, name)`, which trims
 the transparent margin, scales to at most 1100px wide and stores a WebP (quality 0.93) in
@@ -42,3 +43,17 @@ The overlays (`solar-home-lit`, `house-site-lit`, `modern-home-lit`) have the ba
 draw them over the base (for `house-site`, right after the base and before the attached parts).
 
 `iso.js` also has `ISO.prism` (a profile extruded along y, used for the car), `ISO.discY` and `ISO.cable`.
+
+## Villa site
+
+`villa-site.js` is a configurable white flat-roof villa (glass-railed upper terrace and roof edge, warm interiors,
+roll-up garage, light paved plot) built like `house-site.js`: one projection for every layer, one union crop `U0`,
+≤1100px wide, slots and cables as fractions of the base image. Slots: `roof` (`villa-roof-solar`, three rows of
+tilted dark modules on low frames), `wall` (`villa-inverter`, the RESC photo mapped onto the front wall),
+`meter` (`villa-meter`) and `battery` (`villa-battery`, a floor-standing cabinet with an LED strip). Cables:
+`roof>wall`, `wall>battery`, `wall>meter`, `meter>grid` (the last one ends at the plot edge, not on a part).
+Each part layer is cut from a render of the whole scene with that part drawn in depth order, masked by the part's
+own pixels (plus its shadow), so things in front of it (the glass roof railing over the PV rows) are already in the
+layer. `win()` in the scene draws windows with a room behind the glass (floor, back wall, sofa, pendant) that
+lights up with `ISO.lit`. Needs `window.__resc`; the result is in `window.__villa` (`files`, `json`, `previews`).
+`ISO.moduleTex(cols, rows, {cells, frame, back, line})` takes optional colours (used here for dark blue-grey modules).

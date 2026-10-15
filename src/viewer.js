@@ -33,7 +33,7 @@ function add(name,project){const p=F.validate(F.clone(project));files.push({name
 
 async function open(fileList){let ok=0;for(const file of fileList){try{if(file.size>100*1024*1024)throw new Error('الحد 100 MB');add(file.name,JSON.parse(await file.text()));ok++;}catch(e){toast(`${file.name}: ${e.message||'ملف غير صالح'}`);}}if(ok)toast(ok===1?'تم فتح الملف':`تم فتح ${ok} ملفات`);}
 
-function demo(){const p=F.preset('house-parts',window.FLOW_DEMO_ASSETS||{});p.title='منزل بالطاقة الشمسية · تجريبي';add('demo.flow.json',p);$('vw-live').checked=true;live();}
+function demo(){const p=F.preset('villa',window.FLOW_DEMO_ASSETS||{});p.title='فيلا بالطاقة الشمسية · تجريبي';add('demo.flow.json',p);$('vw-live').checked=true;live();}
 
 /* Demo data: values drift, the battery charges or discharges, lights follow the home's load. */
 function tick(){const f=files[current];if(!f)return;const p=f.project,rand=(a,b)=>Math.round((a+Math.random()*(b-a))*10)/10;
