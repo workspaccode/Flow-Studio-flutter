@@ -160,6 +160,8 @@ energyFlow.<span class="tok-fn">setFlowDirection</span>(<span class="tok-str">'b
     <tr><td>Start / End · Offset</td><td>جانب الاتصال بكل عنصر، وإزاحة النقطة على طول الجانب.</td></tr>
     <tr><td>Points</td><td>في الخط المتعرّج اسحب مقبض أي جزء لتحريكه وتبقى الزوايا قائمة. في المستقيم والمنحنى اسحب كل زاوية بحرية. أو اكتب الإحداثيات.</td></tr>
    </tbody></table></div>
+   <h3>العناصر الجاهزة</h3><p>مكتبة <b>Elements</b> تضم: صفوف ألواح (Solar array)، لوح منفرد، منزل بألواح على السطح (Solar home)، مدرسة بفناء ومظلة ألواح (School)، مصنع بسطح ألواح (Factory)، البطارية، الإنفرتر، برج الشبكة، عمود كهرباء بمحوّل (Utility pole)، الحمل، مولد الديزل، المضخة، ونقطة التقاء. كلها رسومات متناسقة بخلفية شفافة. جرّب <b>Starting layout</b>: Solar home system أو School solar system أو Factory with generator backup.</p>
+   <h3>منزل بأجزاء قابلة للإضافة</h3><p>العنصر <b>House + parts</b> منزل له أماكن ثابتة: السطح للألواح، الحائط للإنفرتر، والفناء للبطارية ولعمود الكهرباء. اختر المنزل ثم تبويب <b>Parts</b> وفعّل أو ألغِ كل جزء. كل جزء عنصر مستقل له معرّف وقيم وحالة يمكن تحديثها من تطبيقك، ويتحرك ويكبر مع المنزل. الخطوط بين الأجزاء تُضاف تلقائيًا وتُرسم فوق المنزل (خيار <code dir="ltr">onTop</code>). جرّب <b>Starting layout → Home with roof solar &amp; yard parts</b>.</p>
    <h3>استيراد الصور</h3>
    <p>اسحب الصور إلى المساحة، أو الصقها بـ <kbd dir="ltr">Ctrl/⌘ V</kbd>، أو استخدم <b>Import artwork</b>. يمكن استيراد عدة صور مرة واحدة.</p>
    <div class="doc-table-wrap"><table class="doc-table"><thead><tr><th>الصيغة</th><th>طريقة الحفظ</th></tr></thead><tbody>
@@ -341,7 +343,7 @@ const project = energyFlow.getProject();</code></pre></div>
     <button id="import-asset" class="dropzone" type="button"><span class="dropzone-icon" aria-hidden="true">⤒</span><b>Import artwork</b><small>Drop, paste or browse · SVG, PNG, JPEG, WebP, GIF, AVIF, BMP, ICO</small></button>
     <div id="custom-assets-wrap" hidden><h3 class="pane-heading">Your artwork</h3><div id="custom-assets" class="palette"></div></div>
     <h3 class="pane-heading">Starting layout</h3>
-    <div class="row-control"><select id="preset" aria-label="Starting layout"><option value="hybrid">Hybrid energy flow</option><option value="generator">Hybrid + generator backup</option><option value="pump">Solar pump flow</option><option value="blank">Blank canvas</option></select><button id="apply-preset">Load</button></div>
+    <div class="row-control"><select id="preset" aria-label="Starting layout"><option value="hybrid">Hybrid energy flow</option><option value="generator">Hybrid + generator backup</option><option value="pump">Solar pump flow</option><option value="house-parts">Home with roof solar &amp; yard parts</option><option value="home-system">Solar home system</option><option value="school">School solar system</option><option value="factory">Factory with generator backup</option><option value="blank">Blank canvas</option></select><button id="apply-preset">Load</button></div>
    </div>
    <div id="pane-layers" role="tabpanel" aria-labelledby="tab-layers" class="tab-pane" hidden>
     <div id="layers" class="layer-list"></div>

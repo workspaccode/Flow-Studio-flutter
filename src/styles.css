@@ -148,3 +148,12 @@
 .line-toolbar button[aria-pressed=true]{background:#e8eeff;color:#2f56d6}
 .line-toolbar svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .line-toolbar-sep{width:1px;height:20px;background:#e6ebf2;margin:0 3px}
+/* Parts tab: one row per slot of a host element */
+.part-row{display:flex;align-items:center;gap:10px;padding:9px;border-radius:11px;background:#f6f8fb;margin-bottom:7px}
+.part-row img{width:40px;height:40px;object-fit:contain;background:#fff;border-radius:8px;box-shadow:inset 0 0 0 1px #e6ebf2;flex:none}
+.part-row>div{flex:1;min-width:0}
+.part-row b{display:block;font-size:12px;color:#2f3e55}
+.part-row small{display:block;font-size:10.5px;color:#8c99ad;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.part-row code{font-size:10px;background:#eef2f7;padding:1px 4px;border-radius:4px}
+.part-row button{padding:6px 9px;font-size:11px;background:#fff;box-shadow:inset 0 0 0 1px #e1e7ef}
+.toggle.compact{margin:0;gap:0}

@@ -78,7 +78,7 @@ function assetInfo(n){const a=project.assets[n.kind];if(!a)return'';const vector
 function inspect(){
  const item=findSelected(),host=$('inspector'),type=selection?.type||'canvas';
  const focused=document.activeElement?.closest?.('#inspector')?[document.activeElement.dataset.prop,document.activeElement.type,document.activeElement.dataset.seg,document.activeElement.dataset.value]:null,scroller=host.parentElement,scroll=scroller.scrollTop;
- const sets={canvas:[['canvas','Canvas'],['guide','Shortcuts']],node:[['data','Data'],['label','Label'],['layout','Layout']],edge:[['motion','Motion'],['style','Style'],['route','Route']]}[type];
+ const isHost=type==='node'&&item&&slotsOf(item),sets={canvas:[['canvas','Canvas'],['guide','Shortcuts']],node:isHost?[['parts','Parts'],['data','Data'],['label','Label'],['layout','Layout']]:[['data','Data'],['label','Label'],['layout','Layout']],edge:[['motion','Motion'],['style','Style'],['route','Route']]}[type];
  if(!sets.some(([k])=>k===tabs[type]))tabs[type]=sets[0][0];const tab=tabs[type];
  $('inspector-tabs').innerHTML=sets.map(([k,t])=>`<button role="tab" data-itab="${k}" aria-selected="${k===tab}">${t}</button>`).join('');
  $('inspector-kind').textContent={canvas:'Canvas',node:'Element',edge:'Line'}[type];$('inspector-kind').dataset.kind=type;
@@ -94,7 +94,12 @@ function inspect(){
   if(tab==='data')host.innerHTML=group('',state+text('Name','name',item.name)+pair(number('Value','value',item.value),text('Unit','unit',item.unit))+text('Status text','status',item.status,'placeholder="e.g. Charging"'))
    +group('Details',toggle('Show current & efficiency','showDetails',item.showDetails)+pair(number('Current','current',item.current),text('Current unit','currentUnit',item.currentUnit))+number('Efficiency','efficiency',item.efficiency,{min:0,max:100,unit:'%'}));
   if(tab==='label')host.innerHTML=group('',toggle('Show label','showLabel',item.showLabel!==false)+segmented('Position','labelSide',item.labelSide,[['top','Top'],['bottom','Bottom'],['left','Left'],['right','Right']])+slider('Gap','labelGap',item.labelGap,{min:0,max:200,step:1,unit:'px'})+slider('Font size','fontSize',item.fontSize,{min:8,max:60,step:1,unit:'px'})+color('Value color','color',item.color));
-  if(tab==='layout')host.innerHTML=group('Artwork',assetInfo(item)+`<div class="button-row"><button id="replace-art">Replace image…</button><button id="native-ratio" title="Match the image's aspect ratio">Fit image ratio</button></div>`)
+  if(tab==='parts'){const slots=slotsOf(item);host.innerHTML=group('Parts',Object.entries(slots).map(([slot,sl])=>{const part=partIn(item,slot),d=PART[slot]||{label:slot};return`<div class="part-row"><img alt="" src="${esc((project.assets[sl.kind]||BUILTINS[sl.kind]).src)}"><div><b>${esc(d.label)}</b><small>${part?`id <code>${esc(part.id)}</code>`:'Not added'}</small></div>${part?`<button data-edit-part="${esc(part.id)}">Edit</button>`:''}<label class="toggle compact"><input type="checkbox" data-part="${slot}" ${part?'checked':''} aria-label="${esc(d.label)}"><span class="switch" aria-hidden="true"></span></label></div>`;}).join(''),'Each part is its own element with live data. Lines between the parts are added automatically and drawn over the house.');
+   host.querySelectorAll('[data-part]').forEach(c=>c.onchange=()=>{const slot=c.dataset.part;if(c.checked){const n=addPart(item,slot);if(n)toast(`${n.name} added · id ${n.id}`);}else{const part=partIn(item,slot);if(part)removeNodes(new Set([part.id]));}refresh();});
+   host.querySelectorAll('[data-edit-part]').forEach(b=>b.onclick=()=>select('node',b.dataset.editPart));}
+  if(tab==='layout'&&item.attach){const h=hostOf(item);host.innerHTML=group('Attached',`<div class="asset-card"><img src="${esc(project.assets[item.kind]?.src||'')}" alt=""><div><b>Part of ${esc(h?.name||item.attach.to)}</b><small>Moves and scales with it · slot <code>${esc(item.attach.slot)}</code></small></div></div><div class="button-row"><button id="select-host">Select ${esc(h?.name||'host')}</button><button id="detach-part">Detach</button></div>`,'Detached parts become free elements you can move on their own.');
+   $('select-host').onclick=()=>select('node',item.attach.to);$('detach-part').onclick=()=>{delete item.attach;refresh();toast('Part detached');};}
+  else if(tab==='layout')host.innerHTML=group('Artwork',assetInfo(item)+`<div class="button-row"><button id="replace-art">Replace image…</button><button id="native-ratio" title="Match the image's aspect ratio">Fit image ratio</button></div>`)
    +group('Position',pair(number('X','x',item.x,{step:1,unit:'px'}),number('Y','y',item.y,{step:1,unit:'px'}))+`<div class="button-row"><button data-center="x">Center horizontally</button><button data-center="y">Center vertically</button></div>`)
    +group('Size',pair(number('Width','w',item.w,{min:1,max:4096,step:1,unit:'px'}),number('Height','h',item.h,{min:1,max:4096,step:1,unit:'px'}))+`<label class="toggle"><input id="lock-ratio" type="checkbox" ${lockRatio?'checked':''}><span class="switch" aria-hidden="true"></span><span>Lock aspect ratio</span></label>`);
   $('duplicate').onclick=duplicate;$('remove').onclick=remove;
@@ -128,7 +133,42 @@ function inspect(){
  scroller.scrollTop=scroll;
 }
 /* Moving an element re-routes its connected lines (manual points would no longer meet it). */
-function autoEdges(n){for(const e of project.edges)if(e.from===n.id||e.to===n.id)e.auto=true;}
+/* ---------- Attachable parts (e.g. a house with roof solar, wall inverter, yard battery and pole) ----------
+   A host asset lists slots as fractions of its image; a part is a normal element with attach:{to,slot} whose box
+   follows that slot, so it keeps its own id, data, state and lines. */
+const PART={roof:{label:'Roof solar',id:'solar',side:'top',value:6.4,status:'Rooftop PV'},wall:{label:'Wall inverter',id:'inverter',side:'right',value:5.9,status:'Online'},battery:{label:'Battery',id:'battery',side:'bottom',value:3.2,status:'Charging'},pole:{label:'Utility pole',id:'grid',side:'right',value:1.2,status:'Grid'}};
+/* Parts wired together automatically: [from slot, to slot, direction] */
+const PART_LINKS=[['roof','wall',1],['wall','battery',1],['wall','pole',1]];
+const r2=v=>Math.round(v*100)/100;
+const slotsOf=n=>project.assets[n.kind]?.slots||BUILTINS[n.kind]?.slots||null;
+const partsOf=host=>project.nodes.filter(n=>n.attach?.to===host.id);
+const partIn=(host,slot)=>project.nodes.find(n=>n.attach?.to===host.id&&n.attach.slot===slot);
+const hostOf=n=>n?.attach?project.nodes.find(h=>h.id===n.attach.to):null;
+function layoutParts(host){const slots=slotsOf(host),a=project.assets[host.kind];if(!slots||!a)return;const k=Math.min(host.w/a.width,host.h/a.height),iw=a.width*k,ih=a.height*k,left=host.x-iw/2,top=host.y-ih/2;
+ for(const n of partsOf(host)){const sl=slots[n.attach.slot];if(!sl)continue;n.w=Math.max(1,r2(sl.w*iw));n.h=Math.max(1,r2(sl.h*ih));n.x=r2(left+(sl.x+sl.w/2)*iw);n.y=r2(top+(sl.y+sl.h/2)*ih);
+  /* until the user moves it, a part's label sits just outside the house on the part's side */
+  if(n.attach.autoLabel){const gap={left:n.x-n.w/2-left,right:left+iw-(n.x+n.w/2),top:n.y-n.h/2-top,bottom:top+ih-(n.y+n.h/2)}[n.labelSide];if(gap!==undefined)n.labelGap=Math.max(4,Math.min(200,Math.round(gap+10)));}}
+ layoutCables(host);}
+/* Lines between parts follow cable paths stored on the host asset ({"from>to": [[x,y]…]} as fractions of
+   its image): the ends become anchors on the parts, the middle points become waypoints. A line keeps
+   following its path (cable:{host,link}) until the user edits its route. */
+function hostFrame(host){const a=project.assets[host.kind],k=Math.min(host.w/a.width,host.h/a.height),iw=a.width*k,ih=a.height*k;return{iw,ih,left:host.x-iw/2,top:host.y-ih/2};}
+function layoutCables(host){const cables=(project.assets[host.kind]||BUILTINS[host.kind])?.cables;if(!cables)return;const f=hostFrame(host),at=([x,y])=>[r2(f.left+x*f.iw),r2(f.top+y*f.ih)];
+ for(const e of project.edges){if(e.cable?.host!==host.id)continue;const path=cables[e.cable.link],a=nodeById(e.from),b=nodeById(e.to);if(!path||!a||!b)continue;const pts=path.map(at),s=pts[0],t=pts.at(-1);
+  e.sourceAnchor=[r2(s[0]-a.x),r2(s[1]-a.y)];e.targetAnchor=[r2(t[0]-b.x),r2(t[1]-b.y)];e.waypoints=pts.slice(1,-1);e.auto=false;}}
+const unmanage=e=>{if(e?.cable)delete e.cable;};
+/* Facing sides for a line between two boxes. */
+function facing(a,b){const dx=b.x-a.x,dy=b.y-a.y;return Math.abs(dx)>Math.abs(dy)?[dx>0?'right':'left',dx>0?'left':'right']:[dy>0?'bottom':'top',dy>0?'top':'bottom'];}
+function linkParts(host){const cables=(project.assets[host.kind]||BUILTINS[host.kind])?.cables||{};for(const [fs,ts,dir] of PART_LINKS){const a=partIn(host,fs),b=partIn(host,ts);if(!a||!b||project.edges.some(e=>(e.from===a.id&&e.to===b.id)||(e.from===b.id&&e.to===a.id)))continue;if(project.edges.length>=200)return;
+  const [sp,tp]=facing(a,b),e=F.edge(unique(`${a.id}-${b.id}`,project.edges),a.id,b.id,sp,tp),key=`${fs}>${ts}`;Object.assign(e,{name:`${a.name} → ${b.name}`,onTop:true,direction:dir,width:3.5,trackWidth:2,pulses:2,pulseLength:.18,glow:.18,state:a.state==='active'&&b.state==='active'?'active':'inactive'});
+  if(cables[key])Object.assign(e,{cable:{host:host.id,link:key},route:'orthogonal',radius:3,auto:false});else Object.assign(e,{auto:true,route:'curved'});project.edges.push(e);}layoutCables(host);}
+function addPart(host,slot){const sl=slotsOf(host)?.[slot];if(!sl||partIn(host,slot))return null;if(project.nodes.length>=100){toast('Maximum 100 elements');return null;}
+ if(!project.assets[sl.kind])project.assets[sl.kind]=F.clone(BUILTINS[sl.kind]);const d=PART[slot]||{label:NAMES[sl.kind]||slot,id:slot,side:'bottom',value:0,status:''};
+ const n=F.node(unique(`${host.id}-${d.id}`,project.nodes),sl.kind,d.label,host.x,host.y,1,1,{value:d.value,status:d.status,labelSide:d.side,labelGap:6,fontSize:13});n.attach={to:host.id,slot,autoLabel:true};
+ /* drawn right after the house (and its other parts) so it sits on top of it */
+ const after=Math.max(project.nodes.indexOf(host),...partsOf(host).map(m=>project.nodes.indexOf(m)));project.nodes.splice(after+1,0,n);layoutParts(host);linkParts(host);return n;}
+function removeNodes(ids){project.nodes=project.nodes.filter(n=>!ids.has(n.id));project.edges=project.edges.filter(e=>!ids.has(e.from)&&!ids.has(e.to));}
+function autoEdges(n){layoutParts(n);for(const m of [n,...partsOf(n)])for(const e of project.edges)if((e.from===m.id||e.to===m.id)&&!e.cable){e.auto=true;delete e.sourceAnchor;delete e.targetAnchor;}}
 function toManual(e){if(!e.auto)return;e.waypoints=F.points(project,e).slice(1,-1).map(p=>p.map(Math.round));e.auto=false;}
 /* Applies an inspector value; live updates redraw without a history step. */
 function apply(key,raw,live,input){
@@ -139,10 +179,13 @@ function apply(key,raw,live,input){
   const lo=input.min!==''?Number(input.min)/Number(input.dataset.scale||1):-Infinity,hi=input.max!==''?Number(input.max)/Number(input.dataset.scale||1):Infinity;if(input.type==='number'&&(value<lo||value>hi)){if(!live){toast(`Enter a value from ${input.min} to ${input.max}`);inspect();}return;}}
  else if(key==='direction')value=Number(raw);
  if(key==='pulses')value=Math.round(value);
+ if(selection?.type==='node'&&item?.attach?.autoLabel&&(key==='labelGap'||key==='labelSide'))delete item.attach.autoLabel;
  const ratio=selection?.type==='node'&&lockRatio&&(key==='w'||key==='h')?item.h/item.w:null;
  target[key]=value;
  if(ratio){if(key==='w')item.h=Math.max(1,Math.round(value*ratio));else item.w=Math.max(1,Math.round(value/ratio));}
  if(selection?.type==='node'&&['x','y','w','h'].includes(key))autoEdges(item);
+ if(selection?.type==='edge'&&['route','auto','sourcePort','targetPort','sourceOffset','targetOffset','from','to','radius'].includes(key))unmanage(target);
+ if(selection?.type==='edge'&&['sourcePort','sourceOffset','from'].includes(key))delete target.sourceAnchor;if(selection?.type==='edge'&&['targetPort','targetOffset','to'].includes(key))delete target.targetAnchor;
  if(selection?.type==='edge'&&key==='auto'&&!value){target.auto=true;toManual(target);}
  /* Hand-placed points are rarely square; switching to Elbow re-routes with right angles. */
  if(selection?.type==='edge'&&key==='route'&&value==='orthogonal'&&old!=='orthogonal'&&!target.auto){target.auto=true;if(!live)toast('Elbow route recalculated with right angles · drag a section to adjust');}
@@ -156,16 +199,22 @@ $('inspector').addEventListener('change',e=>{const t=e.target;if(t.dataset.prop)
 $('inspector').addEventListener('click',e=>{const b=e.target.closest('[data-seg],[data-swatch]');if(!b)return;const key=b.dataset.seg||b.dataset.swatch;let v=b.dataset.value;if(key==='direction')v=Number(v);apply(key,v,false,null);});
 
 /* ---------- Elements and artwork ---------- */
-const NAMES={solar:'Solar array',panel:'Single panel',battery:'Battery',inverter:'Inverter',grid:'Grid',home:'Load',generator:'Generator',pump:'Pump',junction:'Junction'};
-function addElement(kind,at,name){if(project.nodes.length>=100){toast('Maximum 100 elements');return null;}const a=project.assets[kind],id=unique(kind.startsWith('custom-')?'element':kind,project.nodes);let w=kind==='junction'?8:kind==='battery'?90:kind==='grid'?95:kind==='solar'?210:150,h=w*a.height/a.width;if(h>180){w*=180/h;h=180;}w=Math.round(w);h=Math.round(h);
+const NAMES={solar:'Solar array',panel:'Single panel','solar-home':'Solar home','house-site':'House + parts',school:'School',factory:'Factory',battery:'Battery',inverter:'Inverter','resc-inverter':'RESC inverter',grid:'Grid','utility-pole':'Utility pole',home:'Load',generator:'Generator',pump:'Pump',junction:'Junction','roof-solar':'Roof solar','wall-inverter':'Wall inverter','yard-battery':'Yard battery','yard-pole':'Yard pole'};
+function addElement(kind,at,name){if(project.nodes.length>=100){toast('Maximum 100 elements');return null;}const a=project.assets[kind],id=unique(kind.startsWith('custom-')?'element':kind,project.nodes);let w=kind==='junction'?8:kind==='battery'?90:kind==='grid'?95:kind==='solar'?210:kind==='house-site'?440:['solar-home','school','factory'].includes(kind)?240:kind==='utility-pole'?80:kind==='resc-inverter'?120:150,h=w*a.height/a.width;const maxH=kind==='house-site'?340:['solar-home','school','factory'].includes(kind)?200:180;if(h>maxH){w*=maxH/h;h=maxH;}w=Math.round(w);h=Math.round(h);
  const x=Math.max(w/2,Math.min(project.width-w/2,at?.x??project.width/2)),y=Math.max(h/2,Math.min(project.height-h/2,at?.y??project.height/2));
- const n=F.node(id,kind,name||NAMES[kind]||'Custom element',Math.round(x),Math.round(y),w,h,{showLabel:kind!=='junction'});project.nodes.push(n);selection={type:'node',id};return n;}
+ const n=F.node(id,kind,name||(kind==='house-site'?'Home':NAMES[kind])||'Custom element',Math.round(x),Math.round(y),w,h,{showLabel:kind!=='junction',...(kind==='house-site'?{value:3,status:'Home load',labelGap:4}:{})});project.nodes.push(n);selection={type:'node',id};return n;}
 function tile(kind,name,src,onclick){const b=document.createElement('button');b.className='palette-item';b.title=`Add ${name}`;b.innerHTML=`<img alt="" src="${src}"><span>${esc(name)}</span>`;b.onclick=onclick;return b;}
-function palette(){const host=$('palette');host.replaceChildren();for(const kind of Object.keys(NAMES))host.append(tile(kind,NAMES[kind],project.assets[kind]?.src||BUILTINS[kind].src,()=>{if(!project.assets[kind])project.assets[kind]=F.clone(BUILTINS[kind]);addElement(kind);refresh();}));
+const PART_KINDS=new Set(Object.values(BUILTINS).flatMap(a=>Object.values(a.slots||{}).map(s=>s.kind)));
+function palette(){const host=$('palette');host.replaceChildren();for(const kind of Object.keys(NAMES).filter(k=>!PART_KINDS.has(k)&&BUILTINS[k]))host.append(tile(kind,NAMES[kind],project.assets[kind]?.src||BUILTINS[kind].src,()=>{if(!project.assets[kind])project.assets[kind]=F.clone(BUILTINS[kind]);addElement(kind);refresh();}));
  const custom=Object.keys(project.assets).filter(k=>!BUILTINS[k]),wrap=$('custom-assets');wrap.replaceChildren();$('custom-assets-wrap').hidden=!custom.length;
  for(const kind of custom){const used=project.nodes.find(n=>n.kind===kind);wrap.append(tile(kind,used?.name||'Image',project.assets[kind].src,()=>{addElement(kind,null,used?.name);refresh();}));}}
-function remove(){const item=findSelected();if(!item)return;if(selection.type==='node'){project.nodes=project.nodes.filter(n=>n.id!==item.id);project.edges=project.edges.filter(e=>e.from!==item.id&&e.to!==item.id);}else project.edges=project.edges.filter(e=>e.id!==item.id);selection=null;refresh();}
-function duplicate(){if(project.nodes.length>=100){toast('Maximum 100 elements');return;}const item=findSelected();if(!item||selection.type!=='node')return;const n=F.clone(item);n.id=unique(item.kind.startsWith('custom-')?'element':item.kind,project.nodes);n.x=Math.min(project.width-n.w/2,n.x+30);n.y=Math.min(project.height-n.h/2,n.y+30);project.nodes.push(n);selection={type:'node',id:n.id};refresh();}
+function remove(){const item=findSelected();if(!item)return;if(selection.type==='node'){removeNodes(new Set([item.id,...partsOf(item).map(n=>n.id)]));}else project.edges=project.edges.filter(e=>e.id!==item.id);selection=null;refresh();}
+function duplicate(){const item=findSelected();if(!item||selection.type!=='node')return;const src=hostOf(item)||item,parts=partsOf(src);if(project.nodes.length+1+parts.length>100){toast('Maximum 100 elements');return;}
+ const n=F.clone(src);n.id=unique(src.kind.startsWith('custom-')?'element':src.kind,project.nodes);n.x=Math.min(project.width-n.w/2,n.x+30);n.y=Math.min(project.height-n.h/2,n.y+30);project.nodes.push(n);
+ /* parts come along, and so do the lines between them */
+ const ids={[src.id]:n.id};for(const p of parts){const c=F.clone(p);c.id=unique(p.id.replace(src.id,n.id),project.nodes);c.attach={to:n.id,slot:p.attach.slot};ids[p.id]=c.id;project.nodes.push(c);}layoutParts(n);
+ for(const e of project.edges.filter(e=>ids[e.from]&&ids[e.to]&&e.from!==src.id&&e.to!==src.id)){const c=F.clone(e);c.id=unique(e.id,project.edges);c.from=ids[e.from];c.to=ids[e.to];project.edges.push(c);}
+ selection={type:'node',id:n.id};refresh();}
 
 /* Images keep their original bytes when every export target can read them (SVG, PNG, JPEG, WebP);
    other formats the browser can decode are converted losslessly to PNG at full resolution. */
@@ -216,7 +265,7 @@ function placeLineToolbar(){const bar=$('line-toolbar'),e=selection?.type==='edg
 $('line-toolbar').addEventListener('pointerdown',e=>e.stopPropagation());
 $('line-toolbar').addEventListener('click',e=>{const b=e.target.closest('button'),item=findSelected();if(!b||!item||selection.type!=='edge')return;
  if(b.dataset.lineShape){apply('route',b.dataset.lineShape,false,null);return;}
- if(b.dataset.lineAction==='auto'){if(!item.auto){item.auto=true;refresh();toast('Route follows the elements automatically');}return;}
+ if(b.dataset.lineAction==='auto'){if(!item.auto){unmanage(item);delete item.sourceAnchor;delete item.targetAnchor;item.auto=true;refresh();toast('Route follows the elements automatically');}return;}
  if(b.dataset.lineAction==='reverse'){item.direction*=-1;refresh();}});
 /* ---------- Pointer editing ---------- */
 function coord(event){const svg=$('canvas'),pt=new DOMPoint(event.clientX,event.clientY);return pt.matrixTransform(svg.getScreenCTM().inverse());}
@@ -266,7 +315,7 @@ function startLink(e,l){linking={...l,cursor:coord(e),snap:null,start:{x:e.clien
 function finishLink(){const l=linking,snapTo=l.snap;
  if(!snapTo){if(l.mode==='new'&&Math.hypot(l.cursor.cx-l.start.x,l.cursor.cy-l.start.y)<6){linking={...l,mode:'click'};draw();return;}linking=null;draw();return;}
  linking=null;connectMode=false;
- if(l.mode==='move'){const e=project.edges.find(x=>x.id===l.edge);if(!e){draw();return;}if(l.end==='target'){e.to=snapTo.node;e.targetPort=snapTo.port;e.targetOffset=snapTo.offset||0;}else{e.from=snapTo.node;e.sourcePort=snapTo.port;e.sourceOffset=snapTo.offset||0;}e.auto=true;selection={type:'edge',id:e.id};refresh();toast(`Line reconnected to the ${snapTo.port} of ${nodeById(snapTo.node).name||snapTo.node}`);return;}
+ if(l.mode==='move'){const e=project.edges.find(x=>x.id===l.edge);if(!e){draw();return;}unmanage(e);if(l.end==='target'){delete e.targetAnchor;e.to=snapTo.node;e.targetPort=snapTo.port;e.targetOffset=snapTo.offset||0;}else{delete e.sourceAnchor;e.from=snapTo.node;e.sourcePort=snapTo.port;e.sourceOffset=snapTo.offset||0;}e.auto=true;selection={type:'edge',id:e.id};refresh();toast(`Line reconnected to the ${snapTo.port} of ${nodeById(snapTo.node).name||snapTo.node}`);return;}
  if(project.edges.length>=200){toast('Maximum 200 lines');draw();return;}
  const from=nodeById(l.fixed),to=nodeById(snapTo.node),id=unique('flow',project.edges),edge=F.edge(id,from.id,to.id,l.port,snapTo.port);edge.sourceOffset=l.offset||0;edge.targetOffset=snapTo.offset||0;edge.name=`${from.name} → ${to.name}`;edge.auto=true;project.edges.push(edge);selection={type:'edge',id};tabs.edge='route';refresh();toast(`Connected ${from.name} (${l.port}) → ${to.name} (${snapTo.port})`);
 }
@@ -284,7 +333,7 @@ $('canvas').addEventListener('pointerdown',e=>{
  if(handle){const edge=project.edges.find(x=>x.id===handle.dataset.edgeId),i=Number(handle.dataset.waypoint);if(dbl){edge.waypoints.splice(i,1);refresh();return;}drag={type:'waypoint',id:edge.id,index:i};$('canvas').setPointerCapture(e.pointerId);e.preventDefault();return;}
  if(ng){const id=ng.dataset.node,n=nodeById(id),pt=coord(e);
   if(connectMode){const side=nearestPort(n,pt);linking={mode:'click',fixed:id,port:side,offset:sideOffset(n,side,pt),cursor:pt,snap:null};selection={type:'node',id};draw();inspect();return;}
-  if(selection?.type!=='node'||selection.id!==id)select('node',id);drag={type:'node',id,dx:pt.x-n.x,dy:pt.y-n.y,moved:false};$('canvas').setPointerCapture(e.pointerId);e.preventDefault();
+  if(selection?.type!=='node'||selection.id!==id)select('node',id);const mover=hostOf(n)||n;drag={type:'node',id:mover.id,dx:pt.x-mover.x,dy:pt.y-mover.y,moved:false};$('canvas').setPointerCapture(e.pointerId);e.preventDefault();
  }else if(eg){const id=eg.dataset.edge;if(dbl&&selection?.type==='edge'&&selection.id===id){addPointAt(project.edges.find(x=>x.id===id),coord(e));return;}if(selection?.type!=='edge'||selection.id!==id)select('edge',id);}
  else if(selection){selection=null;draw();inspect();}
 });
@@ -296,7 +345,7 @@ $('canvas').addEventListener('pointermove',e=>{
  else{const edge=project.edges.find(e=>e.id===drag.id);edge.waypoints[drag.index]=[snapped(p.x),snapped(p.y)];drag.moved=true;}
  draw();
 });
-function endDrag(){if(!drag)return;const d=drag;drag=null;if(d.type==='segment'){const edge=project.edges.find(e=>e.id===d.id);if(edge)simplify(edge);if(!d.moved){draw();return;}}if(d.moved){commit();draw();inspect();}}
+function endDrag(){if(!drag)return;const d=drag;drag=null;if(d.type==='segment'||d.type==='waypoint')unmanage(project.edges.find(e=>e.id===d.id));if(d.type==='segment'){const edge=project.edges.find(e=>e.id===d.id);if(edge)simplify(edge);if(!d.moved){draw();return;}}if(d.moved){commit();draw();inspect();}}
 $('canvas').addEventListener('pointerup',e=>{if(linking&&linking.mode!=='click'){const p=coord(e);linking.cursor={x:p.x,y:p.y,cx:e.clientX,cy:e.clientY};linking.snap=snapTarget(p,linking.fixed);finishLink();return;}endDrag();});
 $('canvas').addEventListener('pointercancel',()=>{if(linking){linking=null;draw();}endDrag();});
 
@@ -365,7 +414,7 @@ document.querySelectorAll('[data-export]').forEach(b=>b.onclick=()=>{const kind=
 $('overflow-grow').onclick=()=>{$('overflow-dialog').close();const before=`${project.width} × ${project.height}`;grow();refresh();toast(`Canvas enlarged from ${before} to ${project.width} × ${project.height} · Undo with Ctrl/⌘ Z`);if(pendingExport)runExport(pendingExport);};
 $('overflow-crop').onclick=()=>{$('overflow-dialog').close();if(pendingExport)runExport(pendingExport,{cropped:true});};
 $('overflow-warning').onclick=()=>{const before=`${project.width} × ${project.height}`;grow();refresh();toast(`Canvas enlarged from ${before} to ${project.width} × ${project.height}`);};
-function nudge(dx,dy){const n=findSelected();if(!n||selection.type!=='node')return;n.x=Math.max(n.w/2,Math.min(project.width-n.w/2,n.x+dx));n.y=Math.max(n.h/2,Math.min(project.height-n.h/2,n.y+dy));autoEdges(n);draw();clearTimeout(nudgeTimer);nudgeTimer=setTimeout(()=>{commit();inspect();},300);}
+function nudge(dx,dy){const sel=findSelected();if(!sel||selection.type!=='node')return;const n=hostOf(sel)||sel;n.x=Math.max(n.w/2,Math.min(project.width-n.w/2,n.x+dx));n.y=Math.max(n.h/2,Math.min(project.height-n.h/2,n.y+dy));autoEdges(n);draw();clearTimeout(nudgeTimer);nudgeTimer=setTimeout(()=>{commit();inspect();},300);}
 document.addEventListener('keydown',e=>{if(document.body.dataset.currentScreen&&document.body.dataset.currentScreen!=='editor')return;if(e.target.matches('input,textarea,select')||q('dialog[open]'))return;const cmd=e.ctrlKey||e.metaKey,k=e.key.toLowerCase();
  if(cmd&&k==='z'){e.preventDefault();e.shiftKey?redo():undo();}else if(cmd&&k==='y'){e.preventDefault();redo();}else if(cmd&&k==='d'){e.preventDefault();duplicate();}
  else if(!cmd&&k==='c'){toggleConnect();}

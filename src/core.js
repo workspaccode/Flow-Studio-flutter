@@ -8,16 +8,36 @@ const num=(v,d=0)=>Number.isFinite(Number(v))?Number(v):d;
 const rnd=v=>Math.round(v*1000)/1000;
 function element(tag,attrs={},text){const e=document.createElementNS(NS,tag);for(const[k,v]of Object.entries(attrs))if(v!==undefined)e.setAttribute(k,v);if(text!==undefined)e.textContent=text;return e;}
 function svgAsset(body,w=100,h=100){return{src:'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(`<svg xmlns="${NS}" viewBox="0 0 ${w} ${h}">${body}</svg>`))),width:w,height:h};}
+/* Generator and pump artwork now live in assets.json with the other illustrations. */
 const extraAssets={
- junction:svgAsset('<circle cx="50" cy="50" r="25" fill="#6a8bf2"/>'),
- generator:svgAsset('<ellipse cx="52" cy="86" rx="42" ry="7" fill="#dbe3eb"/><path d="M12 36 26 26H76L88 38V74L76 84H24L12 73Z" fill="#a2b1bf"/><path d="M12 36H75V84H24L12 73Z" fill="#718699"/><path d="M75 36 88 38V74L75 84Z" fill="#445d72"/><rect x="21" y="45" width="44" height="28" rx="3" fill="#ced7df"/><path d="M27 49V67M33 49V67M39 49V67M45 49V67" stroke="#7d8e9f" stroke-width="3"/><rect x="54" y="49" width="7" height="7" rx="1" fill="#5698af"/><path d="M65 26V14H74V26" fill="#576d80"/><path d="m29 84 0 6m40-6v6" stroke="#51677b" stroke-width="5"/>'),
- pump:svgAsset('<ellipse cx="50" cy="85" rx="40" ry="7" fill="#dbe3eb"/><path d="M24 34H60V67H24Z" fill="#6aa9c5"/><path d="M59 34 75 41V70L59 67Z" fill="#376d8c"/><ellipse cx="25" cy="50" rx="16" ry="18" fill="#9ac8da"/><ellipse cx="25" cy="50" rx="10" ry="12" fill="#5e96b1"/><path d="M15 67V79H70V70" fill="#6b8093"/><path d="M71 49H87V32" fill="none" stroke="#98c8dd" stroke-width="10"/><path d="M43 34V16H63" fill="none" stroke="#6da8c2" stroke-width="9"/>')
+ junction:svgAsset('<circle cx="50" cy="50" r="25" fill="#6a8bf2"/>')
 };
 function node(id,kind,name,x,y,w,h,fields={}){return{id,kind,name,x,y,w,h,state:'active',value:0,unit:'kW',current:0,currentUnit:'A',efficiency:100,status:'Online',showDetails:false,labelSide:'bottom',labelGap:12,fontSize:16,color:'#293b55',...fields};}
 function edge(id,from,to,sourcePort,targetPort,waypoints=[]){return{id,name:id,from,to,sourcePort,targetPort,waypoints,auto:false,state:'active',color:'#6688ff',trackColor:'#c9d7ff',width:5,trackWidth:2.4,radius:12,duration:3.5,direction:1,route:'orthogonal',sourceOffset:0,targetOffset:0,pulses:1,pulseLength:.12,glow:.13,trackStyle:'solid'};}
 function preset(kind,assets={}){
  const p={format:'flow-studio',version:1,title:'Hybrid energy flow',width:1000,height:650,background:'#ffffff',nodes:[],edges:[],assets:{...clone(assets),...clone(extraAssets)}};
  if(kind==='blank'){p.title='Untitled flow';return p;}
+ /* A house whose parts sit in its slots (see the editor's attachable parts). */
+ if(kind==='house-parts'){const a=p.assets['house-site'];if(!a?.slots)return p;p.title='Home with roof solar & yard parts';
+  const host=node('home','house-site','Home',455,330,610,a.height*610/a.width,{value:3,status:'Home load',labelGap:4});p.nodes=[host];
+  const k=host.w/a.width,iw=a.width*k,ih=a.height*k,left=host.x-iw/2,top=host.y-ih/2,r=v=>Math.round(v*100)/100;
+  const spec={roof:['solar','Roof solar','top',6.4,'Rooftop PV'],wall:['inverter','Wall inverter','right',5.9,'Online'],battery:['battery','Battery','bottom',3.2,'Charging'],pole:['grid','Utility pole','right',1.2,'Grid']};
+  for(const [slot,[id,name,side,value,status]] of Object.entries(spec)){const sl=a.slots[slot],n=node(id,sl.kind,name,r(left+(sl.x+sl.w/2)*iw),r(top+(sl.y+sl.h/2)*ih),r(sl.w*iw),r(sl.h*ih),{value,status,labelSide:side,fontSize:13});
+   n.labelGap=Math.max(4,Math.round({left:n.x-n.w/2-left,right:left+iw-(n.x+n.w/2),top:n.y-n.h/2-top,bottom:top+ih-(n.y+n.h/2)}[side]+10));n.attach={to:'home',slot,autoLabel:true};p.nodes.push(n);}
+  /* lines follow the cable paths stored on the house: ends become anchors, the middle becomes waypoints */
+  const at=([x,y])=>[r(left+x*iw),r(top+y*ih)],byId=id=>p.nodes.find(n=>n.id===id);
+  const link=(id,from,to,sp,tp,key)=>{const e=Object.assign(edge(id,from,to,sp,tp),{onTop:true,route:'orthogonal',radius:3,width:3.5,trackWidth:2,pulses:2,pulseLength:.18,glow:.18,cable:{host:'home',link:key}}),pts=a.cables[key].map(at),A=byId(from),B=byId(to);
+   e.sourceAnchor=[r(pts[0][0]-A.x),r(pts[0][1]-A.y)];e.targetAnchor=[r(pts.at(-1)[0]-B.x),r(pts.at(-1)[1]-B.y)];e.waypoints=pts.slice(1,-1);return e;};
+  p.edges=[link('solar','solar','inverter','right','top','roof>wall'),link('battery','inverter','battery','bottom','top','wall>battery'),link('grid','inverter','grid','right','bottom','wall>pole')];return p;}
+ /* Building presets: a site connected to an inverter, storage or backup, and the utility pole. */
+ if(kind==='home-system'||kind==='school'||kind==='factory'){
+  const site={'home-system':['solar-home','Solar home',300,240,300,232,{value:6.4,status:'Rooftop PV'}],school:['school','School',300,250,340,242,{value:18.5,status:'Rooftop + canopy PV'}],factory:['factory','Factory',300,255,360,253,{value:42,status:'Rooftop PV'}]}[kind];
+  p.title={'home-system':'Solar home system',school:'School solar system',factory:'Factory with generator backup'}[kind];
+  const backup=kind==='factory'?node('generator','generator','Generator',705,480,112,115,{state:'inactive',value:0,status:'Standby'}):node('battery','battery','Battery',705,480,80,110,{value:kind==='school'?12:3.2,status:'Charging'});
+  p.nodes=[node('site',site[0],site[1],site[2],site[3],site[4],site[5],{...site[6],labelGap:6}),node('inverter','resc-inverter','RESC inverter',705,265,120,106,{value:kind==='factory'?38:kind==='school'?16.8:5.9,efficiency:97,labelSide:'top',labelGap:6}),backup,node('grid','utility-pole','Utility pole',895,265,90,157,{value:kind==='factory'?4:1.2,status:'Grid',labelGap:6})];
+  const lines=[edge('site','site','inverter','right','left'),edge(backup.id,'inverter',backup.id,'bottom','top'),edge('grid','inverter','grid','right','left')];
+  lines.forEach(e=>e.auto=true);if(kind==='factory'){lines[1].state='inactive';}p.edges=lines;return p;
+ }
  if(kind==='pump'){
   p.title='Solar pump flow';p.nodes=[node('solar','solar','Solar panels',175,180,210,135,{value:6.8,efficiency:92}),node('inverter','inverter','Pump inverter',485,220,150,118,{value:6.2,efficiency:96}),node('pump','pump','Water pump',820,260,150,150,{value:5.9,unit:'kW',status:'Running',current:12.3})];
   p.edges=[edge('solar-inverter','solar','inverter','right','left'),edge('inverter-pump','inverter','pump','right','left')];p.edges.forEach(e=>e.auto=true);return p;
@@ -32,7 +52,7 @@ const direction=p=>({left:[-1,0],right:[1,0],top:[0,-1],bottom:[0,1],center:[0,0
 function edgePort(n,p,off){const q=port(n,p),o=num(off);return p==='left'||p==='right'?[q[0],q[1]+o]:p==='top'||p==='bottom'?[q[0]+o,q[1]]:q;}
 /* Optional line styling with the defaults older files render with. */
 function look(e){return{route:e.route||'orthogonal',pulses:e.pulses??1,pulseLength:e.pulseLength??.12,glow:e.glow??.13,trackStyle:e.trackStyle||'solid'};}
-function points(p,e){const a=p.nodes.find(n=>n.id===e.from),b=p.nodes.find(n=>n.id===e.to);if(!a||!b)return[];const s=edgePort(a,e.sourcePort,e.sourceOffset),t=edgePort(b,e.targetPort,e.targetOffset);
+function points(p,e){const a=p.nodes.find(n=>n.id===e.from),b=p.nodes.find(n=>n.id===e.to);if(!a||!b)return[];/* An anchor ([dx,dy] from the element's centre) pins an end to an exact point, e.g. a cable entry. */const s=e.sourceAnchor?[a.x+e.sourceAnchor[0],a.y+e.sourceAnchor[1]]:edgePort(a,e.sourcePort,e.sourceOffset),t=e.targetAnchor?[b.x+e.targetAnchor[0],b.y+e.targetAnchor[1]]:edgePort(b,e.targetPort,e.targetOffset);
  if(!e.auto)return[s,...e.waypoints.map(v=>[num(v[0]),num(v[1])]),t];if(look(e).route!=='orthogonal')return[s,t];
  const d1=direction(e.sourcePort),d2=direction(e.targetPort),s1=[s[0]+d1[0]*30,s[1]+d1[1]*30],t1=[t[0]+d2[0]*30,t[1]+d2[1]*30];let mid=[];
  if(d1[0]&&d2[0]){const x=(s1[0]+t1[0])/2;mid=[[x,s1[1]],[x,t1[1]]];}
@@ -75,7 +95,7 @@ function render(p,options={}){
  const svg=element('svg',{xmlns:NS,width:p.width,height:p.height,viewBox:`0 0 ${p.width} ${p.height}`,role:'img','aria-label':p.title});svg.append(element('title',{},p.title));
  if(!options.transparent)svg.append(element('rect',{width:p.width,height:p.height,fill:p.background}));
  if(options.grid){const defs=element('defs'),pat=element('pattern',{id:'editor-grid',width:20,height:20,patternUnits:'userSpaceOnUse'});pat.append(element('circle',{cx:1,cy:1,r:.7,fill:'#d1dbea'}));defs.append(pat);svg.append(defs,element('rect',{width:p.width,height:p.height,fill:'url(#editor-grid)','pointer-events':'none'}));}
- const flowLayer=element('g',{'data-layer':'flows'}),nodeLayer=element('g',{'data-layer':'nodes'});svg.append(flowLayer,nodeLayer);
+ const flowLayer=element('g',{'data-layer':'flows'}),nodeLayer=element('g',{'data-layer':'nodes'}),topLayer=element('g',{'data-layer':'flows-above'});svg.append(flowLayer,nodeLayer,topLayer);
  for(const e of p.edges){const sh=shape(p,e),d=pathData(sh),l=look(e),td=trackDash(e);if(!d)continue;const len=Math.max(1,lengthOf(d));const g=element('g',{'data-edge':e.id,opacity:e.state==='hidden'?0:1,'pointer-events':e.state==='hidden'?'none':undefined});
   if(options.editable){g.append(element('path',{d,stroke:'transparent','stroke-width':20,fill:'none', 'pointer-events':'stroke'}));}
   const track=element('path',{d,fill:'none',stroke:e.trackColor,'stroke-width':e.trackWidth,'stroke-linecap':'round','stroke-linejoin':'round',opacity:e.state==='inactive'?.3:.85,'stroke-dasharray':td?td.join(' '):undefined});g.append(track);
@@ -83,7 +103,7 @@ function render(p,options={}){
    if(options.animate!==false){path.append(element('animate',{attributeName:'stroke-dashoffset',from:0,to:-len*e.direction,dur:`${e.duration}s`,repeatCount:'indefinite'}));}g.append(path);
   }}
   if(options.selection?.type==='edge'&&options.selection.id===e.id){g.append(element('path',{d,fill:'none',stroke:'#3265ef','stroke-width':1,'stroke-dasharray':'4 4','pointer-events':'none'}));/* Route handles are drawn by the editor. */}
-  flowLayer.append(g);
+  (e.onTop?topLayer:flowLayer).append(g);
  }
  for(const n of p.nodes){const g=element('g',{'data-node':n.id,opacity:opacity(n.state),'pointer-events':n.state==='hidden'?'none':undefined}),a=p.assets[n.kind];
   if(a)g.append(element('image',{x:n.x-n.w/2,y:n.y-n.h/2,width:n.w,height:n.h,href:a.src,preserveAspectRatio:'xMidYMid meet'}));
@@ -111,14 +131,14 @@ async function lottie(p,options={}){
  const base=(nm,ty,transform=ks())=>({ddd:0,ty,nm,sr:1,ks:transform,ao:0,ip:0,op,st:0,bm:0});
  const shapeLayer=(nm,it,transform=ks())=>({...base(nm,4,transform),shapes:[{ty:'gr',nm,it:[...it,tr()]}]});
  if(!options.transparent){layers.push(shapeLayer('background',[{ty:'rc',d:1,s:stat([p.width,p.height]),p:stat([p.width/2,p.height/2]),r:stat(0)},{ty:'fl',c:stat(rgb(p.background)),o:stat(100),r:1,bm:0}]));}
- for(const e of p.edges){if(e.state==='hidden')continue;const sh=shape(p,e),len=Math.max(1,lengthOf(pathData(sh))),l=look(e),td=trackDash(e),path={ty:'sh',nm:'Rounded route',ks:stat(sh)};
+ const edgeLayers=list=>{for(const e of list){if(e.state==='hidden')continue;const sh=shape(p,e),len=Math.max(1,lengthOf(pathData(sh))),l=look(e),td=trackDash(e),path={ty:'sh',nm:'Rounded route',ks:stat(sh)};
   const stroke=(color,width,opacity,dash)=>({ty:'st',c:stat(rgb(color)),o:stat(opacity),w:stat(width),lc:2,lj:2,ml:4,bm:0,...(dash?{d:dash}:{})});
   layers.push(shapeLayer(`flow-${e.id} • track`,[clone(path),stroke(e.trackColor,e.trackWidth,e.state==='inactive'?30:85,td?[{n:'d',v:stat(td[0])},{n:'g',v:stat(td[1])}]:null)]));
   if(e.state==='active')for(const glow of l.glow>0?[true,false]:[false]){
    const repeats=op/Math.max(1,Math.round(e.duration*fps)),[pd,pg]=pulseDash(len,e);const dash=[{n:'d',v:stat(pd)},{n:'g',v:stat(pg)},{n:'o',v:animated(0,-len*e.direction*repeats,op)}];
    layers.push(shapeLayer(`flow-${e.id} • ${glow?'glow':'pulse'}`,[clone(path),stroke(e.color,glow?e.width*2.8:e.width,glow?l.glow*100:95,dash)]));
   }
- }
+ }};edgeLayers(p.edges.filter(e=>!e.onTop));
  const assetMap={},assetScale={};for(const n of p.nodes){if(n.state==='hidden')continue;let a=p.assets[n.kind];if(!a)continue;let ref=assetMap[n.kind];
   if(!ref){ref='art_'+Object.keys(assetMap).length;assetMap[n.kind]=ref;let src=a.src,rs=1;if(!src.startsWith('data:image/png;')&&!src.startsWith('data:image/jpeg;')){
    /* Vector art is rasterized at 3× its largest on-canvas size (≤2048px) so it stays sharp. */
@@ -126,7 +146,7 @@ async function lottie(p,options={}){
    const im=await image(src),c=document.createElement('canvas');c.width=Math.round(a.width*rs);c.height=Math.round(a.height*rs);c.getContext('2d').drawImage(im,0,0,c.width,c.height);src=c.toDataURL('image/png');}assetScale[ref]=rs;out.assets.push({id:ref,w:Math.round(a.width*rs),h:Math.round(a.height*rs),u:'',p:src,e:1});}
   const scale=Math.min(n.w/a.width,n.h/a.height),w=a.width*scale,h=a.height*scale,transform=ks([n.x-w/2,n.y-h/2],opacity(n.state)*100),artScale=scale/assetScale[ref];transform.s=stat([artScale*100,artScale*100,100]);layers.push({...base(`node-${n.id} • icon`,2,transform),refId:ref});
   const b=labelBox(n);if(!b.lines.length)continue;const s=element('svg',{xmlns:NS,width:b.width,height:b.height,viewBox:`${b.x} ${b.y} ${b.width} ${b.height}`});s.append(labels(n));const c=await raster(s,b.width,b.height,3),id='label_'+n.id;out.assets.push({id,w:c.width,h:c.height,u:'',p:c.toDataURL('image/png'),e:1});const k=ks([b.x,b.y],opacity(n.state)*100);k.s=stat([100/3,100/3,100]);layers.push({...base(`node-${n.id} • label snapshot`,2,k),refId:id});
- }
+ }edgeLayers(p.edges.filter(e=>e.onTop));
  out.layers=layers.reverse().map((l,i)=>({...l,ind:i+1}));return out;
 }
 function sanitizeSVG(text){const doc=new DOMParser().parseFromString(text,'image/svg+xml');if(doc.querySelector('parsererror')||doc.documentElement.localName!=='svg')throw new Error('Invalid SVG');const root=doc.documentElement;
@@ -140,7 +160,8 @@ function validate(p){if(!p||p.format!=='flow-studio'||p.version!==1||!Array.isAr
  const finite=(v,min,max)=>Number.isFinite(v)&&v>=min&&v<=max;const color=v=>/^#[\da-f]{6}$/i.test(v);const opt=(o,k,ok)=>!(k in o)||ok(o[k]);const ids=new Set();
  if(!finite(p.width,100,4096)||!finite(p.height,100,4096)||!color(p.background))throw new Error('Invalid canvas settings');
  for(const n of p.nodes){if(!n||typeof n.id!=='string'||ids.has(n.id)||!finite(n.x,-4096,8192)||!finite(n.y,-4096,8192)||!finite(n.w,1,4096)||!finite(n.h,1,4096)||!STATES.includes(n.state)||!finite(n.fontSize,8,60)||!color(n.color)||!['bottom','top','left','right'].includes(n.labelSide))throw new Error('Invalid element data');ids.add(n.id);}
- const edgeIds=new Set();for(const e of p.edges){if(!e||typeof e.id!=='string'||edgeIds.has(e.id)||!ids.has(e.from)||!ids.has(e.to)||!STATES.includes(e.state)||!color(e.color)||!color(e.trackColor)||!finite(e.width,.5,30)||!finite(e.trackWidth,.5,30)||!finite(e.radius,0,100)||!finite(e.duration,.5,20)||![1,-1].includes(e.direction)||!['top','bottom','left','right','center'].includes(e.sourcePort)||!['top','bottom','left','right','center'].includes(e.targetPort)||!Array.isArray(e.waypoints)||e.waypoints.length>80||!e.waypoints.every(q=>Array.isArray(q)&&q.length===2&&q.every(v=>finite(v,-4096,8192)))||!opt(e,'route',v=>['orthogonal','straight','curved'].includes(v))||!opt(e,'sourceOffset',v=>finite(v,-2048,2048))||!opt(e,'targetOffset',v=>finite(v,-2048,2048))||!opt(e,'pulses',v=>Number.isInteger(v)&&v>=1&&v<=12)||!opt(e,'pulseLength',v=>finite(v,.02,.9))||!opt(e,'glow',v=>finite(v,0,1))||!opt(e,'trackStyle',v=>['solid','dashed','dotted'].includes(v)))throw new Error('Invalid line data');edgeIds.add(e.id);}
+ for(const n of p.nodes)if('attach' in n&&(!n.attach||typeof n.attach.to!=='string'||typeof n.attach.slot!=='string'||!ids.has(n.attach.to)||n.attach.to===n.id))throw new Error('Invalid element data');
+ const edgeIds=new Set();for(const e of p.edges){if(e&&'onTop' in e&&typeof e.onTop!=='boolean')throw new Error('Invalid line data');if(e)for(const k of ['sourceAnchor','targetAnchor'])if(k in e&&!(Array.isArray(e[k])&&e[k].length===2&&e[k].every(v=>finite(v,-4096,4096))))throw new Error('Invalid line data');if(!e||typeof e.id!=='string'||edgeIds.has(e.id)||!ids.has(e.from)||!ids.has(e.to)||!STATES.includes(e.state)||!color(e.color)||!color(e.trackColor)||!finite(e.width,.5,30)||!finite(e.trackWidth,.5,30)||!finite(e.radius,0,100)||!finite(e.duration,.5,20)||![1,-1].includes(e.direction)||!['top','bottom','left','right','center'].includes(e.sourcePort)||!['top','bottom','left','right','center'].includes(e.targetPort)||!Array.isArray(e.waypoints)||e.waypoints.length>80||!e.waypoints.every(q=>Array.isArray(q)&&q.length===2&&q.every(v=>finite(v,-4096,8192)))||!opt(e,'route',v=>['orthogonal','straight','curved'].includes(v))||!opt(e,'sourceOffset',v=>finite(v,-2048,2048))||!opt(e,'targetOffset',v=>finite(v,-2048,2048))||!opt(e,'pulses',v=>Number.isInteger(v)&&v>=1&&v<=12)||!opt(e,'pulseLength',v=>finite(v,.02,.9))||!opt(e,'glow',v=>finite(v,0,1))||!opt(e,'trackStyle',v=>['solid','dashed','dotted'].includes(v)))throw new Error('Invalid line data');edgeIds.add(e.id);}
  for(const[k,a]of Object.entries(p.assets)){if(!a||!finite(a.width,1,10000)||!finite(a.height,1,10000)||typeof a.src!=='string'||!/^data:image\/(png|jpeg|webp|svg\+xml);base64,/i.test(a.src))throw new Error('Project assets must be embedded images');if(a.src.startsWith('data:image/svg+xml;')){const text=decodeURIComponent(escape(atob(a.src.split(',')[1])));a.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(sanitizeSVG(text))));}}
  return p;
 }
