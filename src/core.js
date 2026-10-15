@@ -82,7 +82,7 @@ function render(p,options={}){
   if(e.state==='active'){const[dash,gap]=pulseDash(len,e);for(const glow of l.glow>0?[true,false]:[false]){const path=element('path',{d,fill:'none',stroke:e.color,'stroke-width':glow?e.width*2.8:e.width,'stroke-linecap':'round','stroke-linejoin':'round',opacity:glow?l.glow:.95,'stroke-dasharray':`${dash} ${gap}`,'stroke-dashoffset':-len*e.direction*((options.time||0)%e.duration)/e.duration});
    if(options.animate!==false){path.append(element('animate',{attributeName:'stroke-dashoffset',from:0,to:-len*e.direction,dur:`${e.duration}s`,repeatCount:'indefinite'}));}g.append(path);
   }}
-  if(options.selection?.type==='edge'&&options.selection.id===e.id){g.append(element('path',{d,fill:'none',stroke:'#3265ef','stroke-width':1,'stroke-dasharray':'4 4','pointer-events':'none'}));if(!e.auto)e.waypoints.forEach((q,j)=>g.append(element('circle',{cx:q[0],cy:q[1],r:6,fill:'#fff',stroke:'#5579ef','stroke-width':2,'data-waypoint':j,'data-edge-id':e.id,cursor:'move'})));}
+  if(options.selection?.type==='edge'&&options.selection.id===e.id){g.append(element('path',{d,fill:'none',stroke:'#3265ef','stroke-width':1,'stroke-dasharray':'4 4','pointer-events':'none'}));/* Route handles are drawn by the editor. */}
   flowLayer.append(g);
  }
  for(const n of p.nodes){const g=element('g',{'data-node':n.id,opacity:opacity(n.state),'pointer-events':n.state==='hidden'?'none':undefined}),a=p.assets[n.kind];
@@ -90,7 +90,7 @@ function render(p,options={}){
   else g.append(element('rect',{x:n.x-n.w/2,y:n.y-n.h/2,width:n.w,height:n.h,rx:8,fill:'#e5ebf5'}));
   g.append(labels(n));
   if(options.editable){const b=labelBox(n);g.append(element('rect',{x:Math.min(n.x-n.w/2,b.lines.length?b.x:n.x-n.w/2),y:Math.min(n.y-n.h/2,b.lines.length?b.y:n.y-n.h/2),width:Math.max(n.x+n.w/2,b.lines.length?b.x+b.width:n.x+n.w/2)-Math.min(n.x-n.w/2,b.lines.length?b.x:n.x-n.w/2),height:Math.max(n.y+n.h/2,b.lines.length?b.y+b.height:n.y+n.h/2)-Math.min(n.y-n.h/2,b.lines.length?b.y:n.y-n.h/2),fill:'transparent'}));}
-  if(options.selection?.type==='node'&&options.selection.id===n.id){g.append(element('rect',{x:n.x-n.w/2-6,y:n.y-n.h/2-6,width:n.w+12,height:n.h+12,rx:8,fill:'none',stroke:'#6488ef','stroke-width':1.5,'stroke-dasharray':'5 4','pointer-events':'none'}));for(const pt of ['top','bottom','left','right']){const q=port(n,pt);g.append(element('circle',{cx:q[0],cy:q[1],r:4,fill:'#fff',stroke:'#6488ef','stroke-width':1.5,'pointer-events':'none'}));}}
+  if(options.selection?.type==='node'&&options.selection.id===n.id){g.append(element('rect',{x:n.x-n.w/2-6,y:n.y-n.h/2-6,width:n.w+12,height:n.h+12,rx:8,fill:'none',stroke:'#6488ef','stroke-width':1.5,'stroke-dasharray':'5 4','pointer-events':'none'}));/* Connection ports are drawn by the editor as interactive handles. */}
   nodeLayer.append(g);
  }
  return svg;

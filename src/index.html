@@ -171,7 +171,7 @@ energyFlow.<span class="tok-fn">setFlowDirection</span>(<span class="tok-str">'b
    <div class="dc-callout tip"><span class="dc-callout-icon" aria-hidden="true">✓</span><div><b>راقب جودة الصورة.</b><p>تبويب <b>Layout</b> يعرض دقة الصورة، وينبّهك إذا لم تكن كافية لتصدير PNG بدقة 3×. استخدم <b>Replace image</b> لاستبدالها دون فقد الإعدادات.</p></div></div>
    <h3>اختصارات</h3>
    <dl class="dc-keys">
-    <dt><kbd>C</kbd></dt><dd>ربط عنصرين</dd>
+    <dt><kbd>سحب نقطة</kbd></dt><dd>اختر عنصرًا ثم اسحب من أي نقطة من نقاطه الأربع إلى جانب العنصر الآخر. أو انقر النقطة ثم انقر الهدف.</dd><dt><kbd>طرف الخط</kbd></dt><dd>اختر خطًا واسحب طرفه الأزرق إلى جانب أو عنصر آخر لإعادة ربطه.</dd><dt><kbd>C</kbd></dt><dd>أداة الربط: انقر قرب الجانب الذي تريده في المصدر ثم في الهدف</dd>
     <dt><kbd>نقر مزدوج</kbd></dt><dd>على الخط: إضافة نقطة · على النقطة: حذفها</dd>
     <dt><kbd>← ↑ → ↓</kbd></dt><dd>تحريك العنصر 1px، ومع Shift ‏10px</dd>
     <dt><kbd dir="ltr">Ctrl/⌘ D</kbd></dt><dd>تكرار العنصر</dd>
@@ -354,8 +354,8 @@ const project = energyFlow.getProject();</code></pre></div>
    <div class="tool-group"><input id="project-title" class="title-input" aria-label="Project name" value="Hybrid energy flow"></div>
    <div class="tool-group"><button id="undo" class="icon" title="Undo (Ctrl/⌘ Z)" aria-label="Undo">↶</button><button id="redo" class="icon" title="Redo (Ctrl/⌘ Shift Z)" aria-label="Redo">↷</button><span class="tool-separator"></span><button id="connect" title="Connect two elements (C)" aria-pressed="false">↗ Connect</button><button id="motion" aria-pressed="true">Ⅱ Pause</button><span class="tool-separator"></span><label class="check"><input id="snap" type="checkbox" checked> Snap</label><label class="check"><input id="show-grid" type="checkbox"> Grid</label><span class="tool-separator"></span><div class="zoom-control"><button id="zoom-out" class="icon" aria-label="Zoom out">−</button><select id="zoom" aria-label="Canvas zoom"><option value="0.5">50%</option><option value="0.75">75%</option><option value="1" selected>Fit</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option><option value="3">300%</option></select><button id="zoom-in" class="icon" aria-label="Zoom in">+</button></div></div>
   </div>
-  <div class="stage-scroll" id="stage-scroll"><div class="stage-size" id="stage-size"><svg id="canvas" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 650" aria-label="Editable energy flow diagram"></svg></div><div class="drop-overlay" id="drop-overlay" hidden><span>Drop images to add them</span></div></div>
-  <div class="canvas-footer"><span id="canvas-info">1000 × 650</span><span id="hint">Select an element or a line to edit.</span><button id="settings">Canvas settings</button></div>
+  <div class="stage-scroll" id="stage-scroll"><div class="stage-size" id="stage-size"><svg id="canvas" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 650" aria-label="Editable energy flow diagram"></svg></div><div id="line-toolbar" class="line-toolbar" role="toolbar" aria-label="Line shape" hidden><button data-line-shape="straight" title="Straight — direct line" aria-label="Straight"><svg viewBox="0 0 24 24"><path d="M4 19 20 5"/></svg></button><button data-line-shape="orthogonal" title="Elbow — right angles, drag a section to move it" aria-label="Elbow"><svg viewBox="0 0 24 24"><path d="M4 19h7V5h9"/></svg></button><button data-line-shape="curved" title="Curved — smooth curve" aria-label="Curved"><svg viewBox="0 0 24 24"><path d="M4 19C13 19 11 5 20 5"/></svg></button><span class="line-toolbar-sep"></span><button data-line-action="auto" title="Automatic route — follows the elements">Auto</button><button data-line-action="reverse" title="Reverse the motion direction" aria-label="Reverse direction"><svg viewBox="0 0 24 24"><path d="M5 8h13l-3-3M19 16H6l3 3"/></svg></button></div><div class="drop-overlay" id="drop-overlay" hidden><span>Drop images to add them</span></div></div>
+  <div class="canvas-footer"><span id="canvas-info">1000 × 650</span><span id="hint">Select an element or a line to edit.</span><button id="overflow-warning" class="overflow-warning" hidden></button><button id="settings">Canvas settings</button></div>
  </section>
  <aside class="inspector-panel" aria-labelledby="inspector-title">
   <div class="inspector-head"><div class="inspector-heading"><span id="inspector-kind" class="kind-badge">Canvas</span><h2 id="inspector-title">Canvas settings</h2><p id="inspector-subtitle">Size, background and project layout.</p></div><div id="inspector-actions" class="head-actions"></div></div>
@@ -365,6 +365,12 @@ const project = energyFlow.getProject();</code></pre></div>
 </main></section>
 <noscript><p class="no-script" lang="ar" dir="rtl">فعّل JavaScript لفتح المحرر وصفحات المشروع.</p></noscript>
 <div id="toast" role="status" aria-live="polite"></div>
+<dialog id="overflow-dialog" aria-labelledby="overflow-title">
+ <div class="dialog-head"><div><span class="eyebrow">BEFORE YOU EXPORT</span><h2 id="overflow-title">Some content is outside the canvas</h2></div><button data-close="overflow-dialog" aria-label="Close">×</button></div>
+ <p class="dialog-note">These parts would be cut off in the exported file:</p>
+ <ul id="overflow-list" class="overflow-list"></ul>
+ <div class="dialog-actions"><button data-close="overflow-dialog">Cancel</button><button id="overflow-crop">Export cropped</button><button id="overflow-grow" class="primary">Enlarge canvas &amp; export</button></div>
+</dialog>
 <dialog id="flutter-dialog" class="code-dialog">
  <div class="dialog-head"><div><span class="eyebrow">FLUTTER · ANDROID · IOS · WEB · DESKTOP</span><h2>Use it in Flutter</h2></div><button data-close="flutter-dialog" aria-label="Close">×</button></div>
  <p class="dialog-note">Your project file is downloaded. Put it in your app's <code>assets</code> folder and paste the code below. The <code>flow_studio</code> package draws the same routes, motion, artwork and labels natively — no WebView.</p>

@@ -2,7 +2,7 @@
 'use strict';
 const F=window.FlowCore,$=id=>document.getElementById(id),q=(s,r=document)=>r.querySelector(s),esc=F.esc;
 F.standalone.coreSource=window.FLOW_CORE_SOURCE;
-const BUILTINS={...window.FLOW_ASSETS,...F.extraAssets};let project=F.preset('hybrid',window.FLOW_ASSETS),selection=null,paused=matchMedia('(prefers-reduced-motion:reduce)').matches,connectFrom=null,connectMode=false,grid=false,snap=true,drag=null,lastTap=null,lockRatio=true;
+const BUILTINS={...window.FLOW_ASSETS,...F.extraAssets};let project=F.preset('hybrid',window.FLOW_ASSETS),selection=null,paused=matchMedia('(prefers-reduced-motion:reduce)').matches,connectMode=false,grid=false,snap=true,drag=null,lastTap=null,lockRatio=true;
 let history=[],future=[],lastState='',saveTimer,toastTimer,nudgeTimer;
 const STORAGE='flow-studio.v1';
 /* Line fields added after v1 files; missing values mean these defaults. */
@@ -25,14 +25,26 @@ function findSelected(){return selection?(selection.type==='node'?project.nodes:
 function select(type,id){selection=type?{type,id}:null;draw();inspect();}
 function val(item,key){return item[key]??EDGE_DEFAULTS[key];}
 function refresh(){commit();draw();inspect();}
+/* Everything visible that extends past the canvas edges, with how far it goes. */
+function overflow(p=project){const out=[],check=(name,x0,y0,x1,y1)=>{const sides=[['left',-x0],['top',-y0],['right',x1-p.width],['bottom',y1-p.height]].filter(([,d])=>d>.5).map(([side,d])=>`${Math.ceil(d)}px ${side}`);if(sides.length)out.push({name,sides});};
+ for(const n of p.nodes){if(n.state==='hidden')continue;check(`${n.name||n.id}`,n.x-n.w/2,n.y-n.h/2,n.x+n.w/2,n.y+n.h/2);const b=F.labelBox(n);if(b.lines.length)check(`${n.name||n.id} — label`,b.x,b.y,b.x+b.width,b.y+b.height);}
+ for(const e of p.edges){if(e.state==='hidden')continue;const sh=F.shape(p,e),pad=e.width*1.4;let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;sh.v.forEach((v,j)=>{for(const q of [v,[v[0]+sh.o[j][0],v[1]+sh.o[j][1]],[v[0]+sh.i[j][0],v[1]+sh.i[j][1]]]){x0=Math.min(x0,q[0]-pad);y0=Math.min(y0,q[1]-pad);x1=Math.max(x1,q[0]+pad);y1=Math.max(y1,q[1]+pad);}});if(sh.v.length)check(`Line ${e.name||e.id}`,x0,y0,x1,y1);}
+ return out;}
+/* Enlarges the canvas just enough (20px margin) and never shrinks it; content moves only when it is past the left or top edge. */
+function grow(p=project){const b=F.bounds(p),dx=b.minX<.5?Math.ceil(20-b.minX):0,dy=b.minY<.5?Math.ceil(20-b.minY):0;
+ if(dx||dy){for(const n of p.nodes){n.x+=dx;n.y+=dy;}for(const e of p.edges)e.waypoints=e.waypoints.map(q=>[q[0]+dx,q[1]+dy]);}
+ /* sizes in the original coordinates, then widened by the shift so the old canvas area stays inside */
+ const w=b.maxX>p.width-.5?Math.ceil(b.maxX+20):p.width,h=b.maxY>p.height-.5?Math.ceil(b.maxY+20):p.height;p.width=Math.min(4096,w+dx);p.height=Math.min(4096,h+dy);return p;}
 
 /* ---------- Canvas and layers ---------- */
 function draw(){
- const svg=F.render(project,{editable:true,selection,grid,animate:!paused});const canvas=$('canvas');canvas.setAttribute('viewBox',svg.getAttribute('viewBox'));canvas.replaceChildren(...svg.childNodes);canvas.setAttribute('aria-label',project.title);
+ const svg=F.render(project,{editable:true,selection,grid,animate:!paused});const canvas=$('canvas');canvas.setAttribute('viewBox',svg.getAttribute('viewBox'));canvas.replaceChildren(...svg.childNodes);canvas.setAttribute('aria-label',project.title);handles();
  if(document.activeElement!==$('project-title'))$('project-title').value=project.title;$('canvas-info').textContent=`${project.width} × ${project.height}`;
- $('motion').textContent=paused?'▶ Play':'Ⅱ Pause';$('motion').setAttribute('aria-pressed',String(!paused));$('connect').setAttribute('aria-pressed',String(connectMode));$('stage-scroll').classList.toggle('connecting',connectMode);
- $('hint').textContent=connectMode?(connectFrom?'Click the target element · Esc to cancel':'Click the source element · Esc to cancel'):selection?.type==='edge'?'Double-click the line to add a point · double-click a point to remove it':selection?.type==='node'?'Drag to move · arrow keys nudge (Shift = 10px)':'Drag elements · select a line to edit its route';
+ $('motion').textContent=paused?'▶ Play':'Ⅱ Pause';$('motion').setAttribute('aria-pressed',String(!paused));$('connect').setAttribute('aria-pressed',String(connectMode));$('stage-scroll').classList.toggle('connecting',connectMode||!!linking);
+ $('hint').textContent=linking?(linking.mode==='move'?'Drop the end on any side of an element · Esc to cancel':'Release or click on a side of the target element · Esc to cancel'):connectMode?'Click a side of the source element · Esc to cancel':selection?.type==='edge'?'Drag an end handle to reconnect · double-click the line to add a point':selection?.type==='node'?'Drag a side point to connect · drag the element to move':'Drag elements · select a line to edit its route';
  layers();updateZoom();updateHistory();
+ placeLineToolbar();
+ const over=overflow(),warn=$('overflow-warning');warn.hidden=!over.length;if(over.length)warn.textContent=`⚠ ${over.length} outside the canvas · Enlarge canvas`;
 }
 function layers(){const list=$('layers');list.replaceChildren();$('layer-count').textContent=project.nodes.length+project.edges.length;
  for(const [type,items,title] of [['node',project.nodes,'Elements'],['edge',project.edges,'Lines']]){if(!items.length)continue;const h=document.createElement('h3');h.className='pane-heading';h.textContent=`${title} · ${items.length}`;list.append(h);
@@ -100,7 +112,7 @@ function inspect(){
    +group('Track',color('Track color','trackColor',item.trackColor)+slider('Track width','trackWidth',item.trackWidth,{min:.5,max:30,step:.1,unit:'px'})+segmented('Track style','trackStyle',val(item,'trackStyle'),[['solid','Solid'],['dashed','Dashed'],['dotted','Dotted']]))
    +group('Corners',slider('Corner radius','radius',item.radius,{min:0,max:100,step:1,unit:'px'}));
   if(tab==='route'){const pts=item.auto?[]:item.waypoints;
-   host.innerHTML=group('',segmented('Shape','route',val(item,'route'),[['orthogonal','Orthogonal','Right angles with rounded corners'],['straight','Straight','Direct line'],['curved','Curved','Smooth curve']])+toggle('Automatic route','auto',item.auto,'Off = edit points by hand'))
+   host.innerHTML=group('',segmented('Shape','route',val(item,'route'),[['straight','Straight','Direct line'],['orthogonal','Elbow','Right angles — drag a section on the canvas to move it'],['curved','Curved','Smooth curve']])+toggle('Automatic route','auto',item.auto,'Off = edit points by hand'))
     +group('Start',choose('Element','from',item.from,nodes)+segmented('Side','sourcePort',item.sourcePort,PORTS)+slider('Offset along side','sourceOffset',val(item,'sourceOffset'),{min:-150,max:150,step:1,unit:'px',nmin:-2048,nmax:2048}))
     +group('End',choose('Element','to',item.to,nodes)+segmented('Side','targetPort',item.targetPort,PORTS)+slider('Offset along side','targetOffset',val(item,'targetOffset'),{min:-150,max:150,step:1,unit:'px',nmin:-2048,nmax:2048})+`<button id="swap-ends" class="wide">⇅ Swap start and end</button>`)
     +group('Points',item.auto?`<p class="group-note">The route follows the elements automatically.</p><button id="manual-route" class="wide">Edit points by hand</button>`:`<ol class="points">${pts.map((p,i)=>`<li><span>${i+1}</span><input type="number" data-point="${i}" data-axis="0" value="${p[0]}" aria-label="Point ${i+1} X"><input type="number" data-point="${i}" data-axis="1" value="${p[1]}" aria-label="Point ${i+1} Y"><button class="icon" data-remove-point="${i}" aria-label="Remove point ${i+1}">×</button></li>`).join('')}</ol><button id="add-point" class="wide">+ Add point</button>`,'Tip: double-click the line on the canvas to add a point there; drag points to move them.');
@@ -132,6 +144,8 @@ function apply(key,raw,live,input){
  if(ratio){if(key==='w')item.h=Math.max(1,Math.round(value*ratio));else item.w=Math.max(1,Math.round(value/ratio));}
  if(selection?.type==='node'&&['x','y','w','h'].includes(key))autoEdges(item);
  if(selection?.type==='edge'&&key==='auto'&&!value){target.auto=true;toManual(target);}
+ /* Hand-placed points are rarely square; switching to Elbow re-routes with right angles. */
+ if(selection?.type==='edge'&&key==='route'&&value==='orthogonal'&&old!=='orthogonal'&&!target.auto){target.auto=true;if(!live)toast('Elbow route recalculated with right angles · drag a section to adjust');}
  try{F.validate({...project,assets:{}});}catch(e){target[key]=old;if(!live){toast(e.message);inspect();}return;}
  if(selection?.type==='node'&&key==='name'||selection?.type==='edge'&&key==='name')$('inspector-title').textContent=value;
  if(live){draw();for(const twin of $('inspector').querySelectorAll(`[data-prop="${CSS.escape(key)}"]`))if(twin!==input&&twin.type!=='checkbox')twin.value=twin.dataset.hex!==undefined||twin.type==='color'?value:+(value*Number(twin.dataset.scale||1)).toFixed(4);return;}
@@ -190,36 +204,109 @@ stage.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('drop-overlay
 document.addEventListener('paste',e=>{if(document.body.dataset.currentScreen!=='editor'||e.target.matches?.('input,textarea')||q('dialog[open]'))return;const files=[...e.clipboardData.files];const svg=e.clipboardData.getData('text/plain');
  if(files.length){e.preventDefault();importFiles(files);}else if(/^\s*<svg[\s>]/i.test(svg)){e.preventDefault();importFiles([new File([svg],'Pasted image.svg',{type:'image/svg+xml'})]);}});
 
+/* ---------- Floating line toolbar ---------- */
+function placeLineToolbar(){const bar=$('line-toolbar'),e=selection?.type==='edge'&&findSelected();
+ const path=e&&!drag&&!linking&&e.state!=='hidden'&&$('canvas').querySelector(`[data-edge="${CSS.escape(e.id)}"] path`);if(!path){bar.hidden=true;return;}
+ /* Sits above the whole line (or below it when there is no room) so it never covers the line's handles. */
+ bar.hidden=false;const box=path.getBoundingClientRect(),stage=$('stage-scroll'),r=stage.getBoundingClientRect(),gap=16,h=bar.offsetHeight,w=bar.offsetWidth;
+ let top=box.top-r.top-gap-h;if(top<6)top=box.bottom-r.top+gap;
+ const left=Math.max(w/2+6,Math.min(stage.clientWidth-w/2-6,box.left+box.width/2-r.left));
+ bar.style.left=left+stage.scrollLeft+'px';bar.style.top=top+stage.scrollTop+'px';
+ const route=val(e,'route');bar.querySelectorAll('[data-line-shape]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.lineShape===route)));bar.querySelector('[data-line-action=auto]').setAttribute('aria-pressed',String(e.auto));}
+$('line-toolbar').addEventListener('pointerdown',e=>e.stopPropagation());
+$('line-toolbar').addEventListener('click',e=>{const b=e.target.closest('button'),item=findSelected();if(!b||!item||selection.type!=='edge')return;
+ if(b.dataset.lineShape){apply('route',b.dataset.lineShape,false,null);return;}
+ if(b.dataset.lineAction==='auto'){if(!item.auto){item.auto=true;refresh();toast('Route follows the elements automatically');}return;}
+ if(b.dataset.lineAction==='reverse'){item.direction*=-1;refresh();}});
 /* ---------- Pointer editing ---------- */
 function coord(event){const svg=$('canvas'),pt=new DOMPoint(event.clientX,event.clientY);return pt.matrixTransform(svg.getScreenCTM().inverse());}
 function snapped(v){return snap?Math.round(v/10)*10:Math.round(v);}
 function segmentDistance(p,a,b){const dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy,t=l?Math.max(0,Math.min(1,((p.x-a[0])*dx+(p.y-a[1])*dy)/l)):0;return Math.hypot(p.x-a[0]-t*dx,p.y-a[1]-t*dy);}
 function addPointAt(e,pt){toManual(e);const pts=F.points(project,e);let best=0,dist=Infinity;for(let i=0;i<pts.length-1;i++){const d=segmentDistance(pt,pts[i],pts[i+1]);if(d<dist){dist=d;best=i;}}if(e.waypoints.length>=80){toast('Maximum 80 points per line');return;}e.waypoints.splice(best,0,[snapped(pt.x),snapped(pt.y)]);tabs.edge='route';refresh();}
 function doubleTap(e){const now=performance.now(),hit=lastTap&&now-lastTap.t<380&&Math.hypot(e.clientX-lastTap.x,e.clientY-lastTap.y)<8;lastTap=hit?null:{t:now,x:e.clientX,y:e.clientY};return hit;}
+
+/* Connection ports. A link is started from a port handle (drag, or click then click the target),
+   from the Connect tool, or by dragging a selected line's end handle onto another port. */
+const SIDES=['top','right','bottom','left'];
+let linking=null;/* {mode:'new'|'click'|'move', fixed, port, offset, edge, end, cursor, snap, start} */
+const nodeById=id=>project.nodes.find(n=>n.id===id);
+function portsOf(n){return n.kind==='junction'||n.w<40||n.h<40?['center',...SIDES]:SIDES;}
+function handleScale(){return project.width/Math.max(1,$('canvas').getBoundingClientRect().width);}
+/* The side whose edge is closest to the point (small elements also offer their center). */
+function nearestPort(n,pt){if(portsOf(n).includes('center')&&Math.abs(pt.x-n.x)<=n.w/2&&Math.abs(pt.y-n.y)<=n.h/2)return'center';
+ const dx=Math.max(0,Math.abs(pt.x-n.x)-n.w/2),dy=Math.max(0,Math.abs(pt.y-n.y)-n.h/2),d={top:Math.hypot(dx,pt.y-(n.y-n.h/2)),bottom:Math.hypot(dx,pt.y-(n.y+n.h/2)),left:Math.hypot(pt.x-(n.x-n.w/2),dy),right:Math.hypot(pt.x-(n.x+n.w/2),dy)};
+ return SIDES.reduce((a,b)=>d[b]<d[a]?b:a);}
+/* Where along the side the line attaches: snaps to the middle when close, otherwise follows the pointer. */
+function sideOffset(n,side,pt){if(side==='center')return 0;const along=side==='top'||side==='bottom'?pt.x-n.x:pt.y-n.y,half=(side==='top'||side==='bottom'?n.w:n.h)/2,v=Math.max(-half,Math.min(half,along));return Math.abs(v)<10*handleScale()?0:snap?Math.round(v/5)*5:Math.round(v);}
+function snapTarget(pt,exclude){const k=handleScale(),pad=14*k,live=project.nodes.filter(n=>n.id!==exclude&&n.state!=='hidden');
+ const inside=live.filter(n=>Math.abs(pt.x-n.x)<=n.w/2+pad&&Math.abs(pt.y-n.y)<=n.h/2+pad).at(-1);if(inside){const port=nearestPort(inside,pt);return{node:inside.id,port,offset:sideOffset(inside,port,pt)};}
+ let best=null,bd=28*k;for(const n of live)for(const p of portsOf(n)){const q=F.port(n,p),d=Math.hypot(q[0]-pt.x,q[1]-pt.y);if(d<bd){bd=d;best={node:n.id,port:p,offset:0};}}return best;}
+const orient=(a,b)=>Math.abs(a[1]-b[1])<.5&&Math.abs(a[0]-b[0])>=.5?'h':Math.abs(a[0]-b[0])<.5&&Math.abs(a[1]-b[1])>=.5?'v':null;
+/* Drops duplicate points and points that sit on a straight run between their neighbours. */
+function simplify(e){const pts=F.points(project,e);if(pts.length<3)return;const keep=[];for(let i=1;i<pts.length-1;i++){const a=keep.length?keep.at(-1):pts[0],b=pts[i],c=pts[i+1];const dup=Math.hypot(a[0]-b[0],a[1]-b[1])<.5,line=(Math.abs(a[0]-b[0])<.5&&Math.abs(b[0]-c[0])<.5)||(Math.abs(a[1]-b[1])<.5&&Math.abs(b[1]-c[1])<.5);if(!dup&&!line)keep.push(b);}e.waypoints=keep.map(p=>[p[0],p[1]]);}
+const svgEl=(tag,attrs)=>{const el=document.createElementNS(F.NS,tag);for(const[k,v]of Object.entries(attrs))el.setAttribute(k,v);return el;};
+function handles(){
+ const k=handleScale(),layer=svgEl('g',{'data-layer':'handles'}),port=(n,p,attrs)=>{const q=F.port(n,p);layer.append(svgEl('circle',{cx:q[0],cy:q[1],r:6*k,'stroke-width':1.8*k,class:'port-handle',...attrs}));};
+ if(linking){const fixed=nodeById(linking.fixed);if(!fixed){linking=null;return;}
+  for(const n of project.nodes){if(n.id===linking.fixed||n.state==='hidden')continue;for(const p of portsOf(n)){const on=linking.snap?.node===n.id&&linking.snap.port===p;port(n,p,{class:'port-handle target'+(on?' active':''),r:5*k});}}
+  const from=F.edgePort(fixed,linking.port,linking.offset||0),to=linking.snap?F.edgePort(nodeById(linking.snap.node),linking.snap.port,linking.snap.offset||0):[linking.cursor.x,linking.cursor.y];
+  if(linking.snap)layer.append(svgEl('circle',{cx:to[0],cy:to[1],r:7.5*k,'stroke-width':2*k,class:'port-handle snapped'}));
+  layer.append(svgEl('path',{d:`M${from[0]} ${from[1]}L${to[0]} ${to[1]}`,class:'link-preview','stroke-width':2*k,'stroke-dasharray':`${6*k} ${5*k}`}));
+  port(fixed,linking.port,{class:'port-handle origin'});
+ }else if(selection?.type==='node'){const n=findSelected();if(n&&n.state!=='hidden')for(const p of portsOf(n))port(n,p,{'data-port':p,'data-port-node':n.id,'aria-label':`Connect from ${p}`});}
+ else if(selection?.type==='edge'){const e=findSelected();if(e&&e.state!=='hidden'){const pts=F.points(project,e);if(pts.length){
+   /* Elbow lines: one handle per inner straight section, moved across its direction so corners stay square.
+      Other shapes: a handle per corner point (manual routes). */
+   if(val(e,'route')==='orthogonal'){for(let i=1;i<pts.length-2;i++){const o=orient(pts[i],pts[i+1]);if(!o)continue;const mx=(pts[i][0]+pts[i+1][0])/2,my=(pts[i][1]+pts[i+1][1])/2,lw=(o==='h'?18:8)*k,lh=(o==='h'?8:18)*k;layer.append(svgEl('rect',{x:mx-lw/2,y:my-lh/2,width:lw,height:lh,rx:4*k,'stroke-width':1.6*k,class:'segment-handle '+o,'data-segment':i,'aria-label':'Move this section'}));}}
+   else if(!e.auto)e.waypoints.forEach((q,j)=>layer.append(svgEl('circle',{cx:q[0],cy:q[1],r:6*k,'stroke-width':2*k,class:'corner-handle','data-waypoint':j,'data-edge-id':e.id})));for(const [end,q] of [['source',pts[0]],['target',pts.at(-1)]])layer.append(svgEl('circle',{cx:q[0],cy:q[1],r:6.5*k,'stroke-width':2*k,class:'end-handle','data-endpoint':end}));}}}
+ if(connectMode&&!linking)for(const n of project.nodes)if(n.state!=='hidden'&&!(selection?.type==='node'&&selection.id===n.id))for(const p of portsOf(n))port(n,p,{'data-port':p,'data-port-node':n.id,class:'port-handle subtle'});
+ $('canvas').append(layer);
+}
+function startLink(e,l){linking={...l,cursor:coord(e),snap:null,start:{x:e.clientX,y:e.clientY}};$('canvas').setPointerCapture(e.pointerId);e.preventDefault();draw();}
+function finishLink(){const l=linking,snapTo=l.snap;
+ if(!snapTo){if(l.mode==='new'&&Math.hypot(l.cursor.cx-l.start.x,l.cursor.cy-l.start.y)<6){linking={...l,mode:'click'};draw();return;}linking=null;draw();return;}
+ linking=null;connectMode=false;
+ if(l.mode==='move'){const e=project.edges.find(x=>x.id===l.edge);if(!e){draw();return;}if(l.end==='target'){e.to=snapTo.node;e.targetPort=snapTo.port;e.targetOffset=snapTo.offset||0;}else{e.from=snapTo.node;e.sourcePort=snapTo.port;e.sourceOffset=snapTo.offset||0;}e.auto=true;selection={type:'edge',id:e.id};refresh();toast(`Line reconnected to the ${snapTo.port} of ${nodeById(snapTo.node).name||snapTo.node}`);return;}
+ if(project.edges.length>=200){toast('Maximum 200 lines');draw();return;}
+ const from=nodeById(l.fixed),to=nodeById(snapTo.node),id=unique('flow',project.edges),edge=F.edge(id,from.id,to.id,l.port,snapTo.port);edge.sourceOffset=l.offset||0;edge.targetOffset=snapTo.offset||0;edge.name=`${from.name} → ${to.name}`;edge.auto=true;project.edges.push(edge);selection={type:'edge',id};tabs.edge='route';refresh();toast(`Connected ${from.name} (${l.port}) → ${to.name} (${snapTo.port})`);
+}
 $('canvas').addEventListener('pointerdown',e=>{
- if(e.button!==0)return;const dbl=doubleTap(e),handle=e.target.closest('[data-waypoint]'),ng=e.target.closest('[data-node]'),eg=e.target.closest('[data-edge]');
+ if(e.button!==0)return;
+ if(linking?.mode==='click'){linking.cursor=coord(e);linking.snap=snapTarget(linking.cursor,linking.fixed);finishLink();return;}
+ const dbl=doubleTap(e),segEl=e.target.closest('[data-segment]'),portEl=e.target.closest('[data-port]'),endEl=e.target.closest('[data-endpoint]'),handle=e.target.closest('[data-waypoint]'),ng=e.target.closest('[data-node]'),eg=e.target.closest('[data-edge]');
+ if(segEl){const edge=findSelected();toManual(edge);const pts=F.points(project,edge);let i=Number(segEl.dataset.segment),a=i-1,b=i;const o=orient(pts[i],pts[i+1]);
+  /* A neighbouring run in the same direction would turn diagonal: split it with a new corner first. */
+  if(orient(pts[i-1],pts[i])===o){edge.waypoints.splice(a,0,[...edge.waypoints[a]]);a++;b++;}
+  if(orient(pts[i+1],pts[i+2])===o)edge.waypoints.splice(b+1,0,[...edge.waypoints[b]]);
+  drag={type:'segment',id:edge.id,a,b,axis:o==='h'?1:0,moved:false};$('canvas').setPointerCapture(e.pointerId);e.preventDefault();draw();return;}
+ if(portEl){startLink(e,{mode:'new',fixed:portEl.dataset.portNode,port:portEl.dataset.port,offset:0});return;}
+ if(endEl){const edge=findSelected(),end=endEl.dataset.endpoint;startLink(e,{mode:'move',edge:edge.id,end,fixed:end==='source'?edge.to:edge.from,port:end==='source'?edge.targetPort:edge.sourcePort,offset:val(edge,end==='source'?'targetOffset':'sourceOffset')});return;}
  if(handle){const edge=project.edges.find(x=>x.id===handle.dataset.edgeId),i=Number(handle.dataset.waypoint);if(dbl){edge.waypoints.splice(i,1);refresh();return;}drag={type:'waypoint',id:edge.id,index:i};$('canvas').setPointerCapture(e.pointerId);e.preventDefault();return;}
- if(ng){const id=ng.dataset.node,n=project.nodes.find(x=>x.id===id);
-  if(connectMode){if(!connectFrom){connectFrom=id;select('node',id);}else if(connectFrom!==id){if(project.edges.length>=200){toast('Maximum 200 lines');return;}const from=project.nodes.find(n=>n.id===connectFrom);const horizontal=Math.abs(n.x-from.x)>Math.abs(n.y-from.y),sourcePort=horizontal?(n.x>from.x?'right':'left'):(n.y>from.y?'bottom':'top'),targetPort=horizontal?(n.x>from.x?'left':'right'):(n.y>from.y?'top':'bottom');const id2=unique('flow',project.edges),edge=F.edge(id2,connectFrom,id,sourcePort,targetPort);edge.name=`${from.name} → ${n.name}`;edge.auto=true;project.edges.push(edge);connectMode=false;connectFrom=null;selection={type:'edge',id:id2};tabs.edge='motion';refresh();}return;}
-  const pt=coord(e);if(selection?.type!=='node'||selection.id!==id)select('node',id);drag={type:'node',id,dx:pt.x-n.x,dy:pt.y-n.y,moved:false};$('canvas').setPointerCapture(e.pointerId);e.preventDefault();
+ if(ng){const id=ng.dataset.node,n=nodeById(id),pt=coord(e);
+  if(connectMode){const side=nearestPort(n,pt);linking={mode:'click',fixed:id,port:side,offset:sideOffset(n,side,pt),cursor:pt,snap:null};selection={type:'node',id};draw();inspect();return;}
+  if(selection?.type!=='node'||selection.id!==id)select('node',id);drag={type:'node',id,dx:pt.x-n.x,dy:pt.y-n.y,moved:false};$('canvas').setPointerCapture(e.pointerId);e.preventDefault();
  }else if(eg){const id=eg.dataset.edge;if(dbl&&selection?.type==='edge'&&selection.id===id){addPointAt(project.edges.find(x=>x.id===id),coord(e));return;}if(selection?.type!=='edge'||selection.id!==id)select('edge',id);}
  else if(selection){selection=null;draw();inspect();}
 });
-$('canvas').addEventListener('pointermove',e=>{if(!drag)return;const p=coord(e);
- if(drag.type==='node'){const n=project.nodes.find(n=>n.id===drag.id),x=snapped(p.x-drag.dx),y=snapped(p.y-drag.dy);if(n.x!==x||n.y!==y){n.x=Math.max(n.w/2,Math.min(project.width-n.w/2,x));n.y=Math.max(n.h/2,Math.min(project.height-n.h/2,y));autoEdges(n);drag.moved=true;}}
+$('canvas').addEventListener('pointermove',e=>{
+ if(linking){const p=coord(e);linking.cursor={x:p.x,y:p.y,cx:e.clientX,cy:e.clientY};linking.snap=snapTarget(p,linking.fixed);draw();return;}
+ if(!drag)return;const p=coord(e);
+ if(drag.type==='node'){const n=nodeById(drag.id),x=snapped(p.x-drag.dx),y=snapped(p.y-drag.dy);if(n.x!==x||n.y!==y){n.x=Math.max(n.w/2,Math.min(project.width-n.w/2,x));n.y=Math.max(n.h/2,Math.min(project.height-n.h/2,y));autoEdges(n);drag.moved=true;}}
+ else if(drag.type==='segment'){const edge=project.edges.find(e=>e.id===drag.id),v=snapped(drag.axis?p.y:p.x);edge.waypoints[drag.a][drag.axis]=v;edge.waypoints[drag.b][drag.axis]=v;drag.moved=true;}
  else{const edge=project.edges.find(e=>e.id===drag.id);edge.waypoints[drag.index]=[snapped(p.x),snapped(p.y)];drag.moved=true;}
  draw();
 });
-function endDrag(){if(!drag)return;const moved=drag.moved;drag=null;if(moved){commit();inspect();}}
-$('canvas').addEventListener('pointerup',endDrag);$('canvas').addEventListener('pointercancel',endDrag);
+function endDrag(){if(!drag)return;const d=drag;drag=null;if(d.type==='segment'){const edge=project.edges.find(e=>e.id===d.id);if(edge)simplify(edge);if(!d.moved){draw();return;}}if(d.moved){commit();draw();inspect();}}
+$('canvas').addEventListener('pointerup',e=>{if(linking&&linking.mode!=='click'){const p=coord(e);linking.cursor={x:p.x,y:p.y,cx:e.clientX,cy:e.clientY};linking.snap=snapTarget(p,linking.fixed);finishLink();return;}endDrag();});
+$('canvas').addEventListener('pointercancel',()=>{if(linking){linking=null;draw();}endDrag();});
 
 /* ---------- Toolbar, tabs and files ---------- */
 $('undo').onclick=undo;$('redo').onclick=redo;$('motion').onclick=()=>{paused=!paused;draw();};$('show-grid').onchange=e=>{grid=e.target.checked;draw();};$('snap').onchange=e=>snap=e.target.checked;$('zoom').onchange=updateZoom;$('zoom-in').onclick=()=>stepZoom(1);$('zoom-out').onclick=()=>stepZoom(-1);
-function toggleConnect(){connectMode=!connectMode;connectFrom=null;draw();}
+function toggleConnect(){connectMode=!connectMode;linking=null;draw();}
 $('connect').onclick=toggleConnect;$('settings').onclick=()=>select(null);
 $('project-title').onchange=e=>{project.title=e.target.value.trim()||'Untitled flow';refresh();};
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{for(const t of document.querySelectorAll('[data-tab]')){const on=t===b;t.setAttribute('aria-selected',String(on));$('pane-'+t.dataset.tab).hidden=!on;}});
-$('apply-preset').onclick=()=>$('confirm-dialog').showModal();$('confirm-layout').onclick=()=>{const oldAssets=project.assets;project=F.preset($('preset').value,window.FLOW_ASSETS);project.assets={...oldAssets,...project.assets};selection=null;connectMode=false;connectFrom=null;refresh();palette();$('confirm-dialog').close();};
+$('apply-preset').onclick=()=>$('confirm-dialog').showModal();$('confirm-layout').onclick=()=>{const oldAssets=project.assets;project=F.preset($('preset').value,window.FLOW_ASSETS);project.assets={...oldAssets,...project.assets};selection=null;connectMode=false;linking=null;refresh();palette();$('confirm-dialog').close();};
 function download(content,name,mime){const blob=content instanceof Blob?content:new Blob([content],{type:mime});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),20000);}
 function filename(){return(project.title.replace(/[^\p{L}\p{N} _-]/gu,'').trim().replace(/\s+/g,'-')||'energy-flow').slice(0,90);}
 function portableProject(){const p=F.clone(project),needed=new Set(p.nodes.map(n=>n.kind));p.assets=Object.fromEntries(Object.entries(p.assets).filter(([k])=>needed.has(k)));return p;}
@@ -227,7 +314,7 @@ function saveProject(){download(JSON.stringify(portableProject(),null,2),filenam
 $('save-project').onclick=saveProject;$('open-project').onclick=()=>$('project-file').click();
 $('project-file').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>100*1024*1024)throw new Error('Project limit is 100 MB');const p=F.validate(JSON.parse(await file.text()));project={...p,assets:{...project.assets,...F.clone(BUILTINS),...p.assets}};selection=null;refresh();palette();toast('Project opened');}catch(e){toast(e.message);}finally{$('project-file').value='';}};
 $('export-open').onclick=()=>$('export-dialog').showModal();document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
-async function exported(format,options={}){const p=portableProject();F.validate(p);const bounds=F.bounds(p);if(format!=='project'&&(bounds.minX<-.5||bounds.minY<-.5||bounds.maxX>p.width+.5||bounds.maxY>p.height+.5))throw new Error('Some content is outside the canvas. Use Canvas settings → Fit canvas to content before exporting.');const opts={transparent:options.transparent??$('transparent').checked,time:options.time??Number($('snapshot-time').value),animate:options.animate??true};
+async function exported(format,options={}){const p=portableProject();F.validate(p);const bounds=F.bounds(p);if(format!=='project'&&!options.cropped&&(bounds.minX<-.5||bounds.minY<-.5||bounds.maxX>p.width+.5||bounds.maxY>p.height+.5))throw new Error('Some content is outside the canvas. Use Canvas settings → Fit canvas to content before exporting.');const opts={transparent:options.transparent??$('transparent').checked,time:options.time??Number($('snapshot-time').value),animate:options.animate??true};
  if(format==='project'||format==='flutter')return new Blob([JSON.stringify(p,null,2)],{type:'application/json'});
  if(format==='svg')return new Blob([F.serialize(F.render(p,opts))],{type:'image/svg+xml'});
  if(format==='html')return new Blob([F.standalone(p)],{type:'text/html'});
@@ -271,13 +358,19 @@ ${updates.join('\n')||'    // Add elements in Flow Studio to get their ids here.
 }`;
  return{pubspec,dart:dartCode};}
 function showFlutterCode(file){const code=flutterCode(file);$('flutter-pubspec').textContent=code.pubspec;$('flutter-dart').textContent=code.dart;$('export-dialog').close();$('flutter-dialog').showModal();}
-document.querySelectorAll('[data-export]').forEach(b=>b.onclick=async()=>{const kind=b.dataset.export;const old=b.innerHTML;b.disabled=true;try{const blob=await exported(kind);const ext={html:'.html',svg:'.svg',png:'.png',lottie:'.lottie.json',project:'.flow.json',flutter:'.flow.json'}[kind];download(blob,filename()+ext);if(kind==='flutter'){showFlutterCode(filename()+ext);return;}toast(kind==='lottie'?'Lottie exported with embedded artwork and labels':kind.toUpperCase()+' exported');}catch(e){toast('Export failed: '+e.message);}finally{b.disabled=false;b.innerHTML=old;}});
+let pendingExport=null;
+async function runExport(kind,options={}){const button=q(`[data-export="${kind}"]`),old=button.innerHTML;button.disabled=true;try{const blob=await exported(kind,options);const ext={html:'.html',svg:'.svg',png:'.png',lottie:'.lottie.json',project:'.flow.json',flutter:'.flow.json'}[kind];download(blob,filename()+ext);if(kind==='flutter'){showFlutterCode(filename()+ext);return;}toast(kind==='lottie'?'Lottie exported with embedded artwork and labels':kind.toUpperCase()+' exported');}catch(e){toast('Export failed: '+e.message);}finally{button.disabled=false;button.innerHTML=old;}}
+document.querySelectorAll('[data-export]').forEach(b=>b.onclick=()=>{const kind=b.dataset.export,over=kind==='project'?[]:overflow(portableProject());if(!over.length){runExport(kind);return;}
+ pendingExport=kind;$('overflow-list').innerHTML=over.map(o=>`<li><b>${esc(o.name)}</b><span>${o.sides.join(' · ')}</span></li>`).join('');$('overflow-dialog').showModal();});
+$('overflow-grow').onclick=()=>{$('overflow-dialog').close();const before=`${project.width} × ${project.height}`;grow();refresh();toast(`Canvas enlarged from ${before} to ${project.width} × ${project.height} · Undo with Ctrl/⌘ Z`);if(pendingExport)runExport(pendingExport);};
+$('overflow-crop').onclick=()=>{$('overflow-dialog').close();if(pendingExport)runExport(pendingExport,{cropped:true});};
+$('overflow-warning').onclick=()=>{const before=`${project.width} × ${project.height}`;grow();refresh();toast(`Canvas enlarged from ${before} to ${project.width} × ${project.height}`);};
 function nudge(dx,dy){const n=findSelected();if(!n||selection.type!=='node')return;n.x=Math.max(n.w/2,Math.min(project.width-n.w/2,n.x+dx));n.y=Math.max(n.h/2,Math.min(project.height-n.h/2,n.y+dy));autoEdges(n);draw();clearTimeout(nudgeTimer);nudgeTimer=setTimeout(()=>{commit();inspect();},300);}
 document.addEventListener('keydown',e=>{if(document.body.dataset.currentScreen&&document.body.dataset.currentScreen!=='editor')return;if(e.target.matches('input,textarea,select')||q('dialog[open]'))return;const cmd=e.ctrlKey||e.metaKey,k=e.key.toLowerCase();
  if(cmd&&k==='z'){e.preventDefault();e.shiftKey?redo():undo();}else if(cmd&&k==='y'){e.preventDefault();redo();}else if(cmd&&k==='d'){e.preventDefault();duplicate();}
  else if(!cmd&&k==='c'){toggleConnect();}
  else if(e.key.startsWith('Arrow')&&selection?.type==='node'){e.preventDefault();const s=e.shiftKey?10:1;nudge(e.key==='ArrowLeft'?-s:e.key==='ArrowRight'?s:0,e.key==='ArrowUp'?-s:e.key==='ArrowDown'?s:0);}
- else if((e.key==='Delete'||e.key==='Backspace')&&selection&&!e.target.closest('button')){e.preventDefault();remove();}else if(e.key==='Escape'){connectMode=false;connectFrom=null;select(null);}});
+ else if((e.key==='Delete'||e.key==='Backspace')&&selection&&!e.target.closest('button')){e.preventDefault();remove();}else if(e.key==='Escape'){if(linking||connectMode){linking=null;connectMode=false;draw();}else select(null);}});
 window.flowStudio={getProject:()=>F.clone(project),setProject(p){const next=F.validate(F.clone(p));project={...next,assets:{...project.assets,...F.clone(BUILTINS),...next.assets}};selection=null;refresh();palette();},setNodeState(id,state){if(!F.STATES.includes(state))throw new Error('Invalid state');const n=project.nodes.find(n=>n.id===id);if(!n)throw new Error('Unknown node');n.state=state;refresh();},setFlowState(id,state){if(!F.STATES.includes(state))throw new Error('Invalid state');const e=project.edges.find(e=>e.id===id);if(!e)throw new Error('Unknown line');e.state=state;refresh();},setNodeData(id,data){const n=project.nodes.find(n=>n.id===id);if(!n)throw new Error('Unknown node');for(const k of ['name','value','unit','current','currentUnit','efficiency','status','showDetails'])if(k in data)n[k]=data[k];refresh();},export:exported,importFiles,select,undo,redo};
 palette();draw();inspect();updateHistory();
 })();
