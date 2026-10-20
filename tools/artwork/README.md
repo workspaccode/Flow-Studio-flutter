@@ -14,6 +14,7 @@ boxes, roofs, windows, cylinders, foliage, PV modules, soft shadows).
 | `house-site.js` | `house-site` + parts `roof-solar`, `wall-inverter`, `yard-battery`, `yard-pole` |
 | `ev-charger.js` | `ev-charger` |
 | `smart-meter.js` | `smart-meter` |
+| `combiner-box.js` | `combiner-box` (RESC PV combiner box; logo cropped from `resc-inverter.png`, needs `window.__resc`) |
 | `modern-home.js` | `modern-home` |
 | `villa-site.js` | `villa-site` (+ `villa-site-lit`) + parts `villa-roof-solar`, `villa-inverter`, `villa-meter`, `villa-battery` |
 
@@ -57,3 +58,19 @@ own pixels (plus its shadow), so things in front of it (the glass roof railing o
 layer. `win()` in the scene draws windows with a room behind the glass (floor, back wall, sofa, pendant) that
 lights up with `ISO.lit`. Needs `window.__resc`; the result is in `window.__villa` (`files`, `json`, `previews`).
 `ISO.moduleTex(cols, rows, {cells, frame, back, line})` takes optional colours (used here for dark blue-grey modules).
+
+## Mirrored view (`ISO.mirror`)
+
+Set `ISO.mirror = true` before running a scene to render the second orientation: world x and y swap, so the house's
+back faces the top-left and its front (the +y facade) faces the bottom-right. Geometrically the result is an exact
+horizontal flip of the normal canvas (`ISO.P` uses `width − OX` as origin), so draw order, visible faces, crops, slots
+and cables stay consistent and are simply recomputed in the mirrored projection. What is *not* flipped:
+- light: `ISO.shade` reflects its normal, so the screen-right faces stay lit;
+- per-face styling: `ISO.box` (and any helper wrapped with `ISO.swapXY`, e.g. `wbox` in `villa-site.js`) and
+  `ISO.window` draw the reflected primitive with the unmirrored engine (`ISO.plain`), so each screen side keeps the
+  look it has in the normal view;
+- textures: `ISO.tex` swaps its corners (top-right becomes top-left, bottom-left becomes b+c−a), so the RESC logo and
+  the PV modules read left-to-right.
+`house-site.js` and `villa-site.js` add the suffix `-m` to their output names and slot kinds in this mode
+(`house-site-m`, `house-site-m-lit`, `roof-solar-m`, …, `villa-site-m`, `villa-site-m-lit`, `villa-roof-solar-m`, …).
+With the flag off the output is byte-identical to before.

@@ -109,7 +109,7 @@ energyFlow.<span class="tok-fn">setFlowDirection</span>(<span class="tok-str">'b
   <div class="lp-platforms">
    <a href="#docs/flutter" class="lp-platform"><span class="lp-platform-mark flutter" aria-hidden="true">F</span><h3>Flutter</h3><p>Android · iOS · Web · Desktop</p><small>رسم أصلي بمكتبة flow_studio</small><i aria-hidden="true">←</i></a>
    <a href="#docs/web" class="lp-platform"><span class="lp-platform-mark web" aria-hidden="true">&lt;/&gt;</span><h3>الويب</h3><p>HTML · Next.js · Vue</p><small>iframe وواجهة JavaScript</small><i aria-hidden="true">←</i></a>
-   <a href="Flow-Viewer.html" class="lp-platform"><span class="lp-platform-mark media" aria-hidden="true">▶</span><h3>عارض الملفات</h3><p>Flow Viewer · SVG · PNG</p><small>اعرض ملفات .flow.json بملء الشاشة</small><i aria-hidden="true">←</i></a>
+   <a href="viewer.html" data-built-href="Flow-Viewer.html" class="lp-platform"><span class="lp-platform-mark media" aria-hidden="true">▶</span><h3>عارض الملفات</h3><p>Flow Viewer · SVG · PNG</p><small>اعرض ملفات .flow.json بملء الشاشة</small><i aria-hidden="true">←</i></a>
   </div>
  </section>
 
@@ -361,7 +361,7 @@ const project = energyFlow.getProject();</code></pre></div>
     <button id="import-asset" class="dropzone" type="button"><span class="dropzone-icon" aria-hidden="true">⤒</span><b>Import artwork</b><small>Drop, paste or browse · SVG, PNG, JPEG, WebP, GIF, AVIF, BMP, ICO</small></button>
     <div id="custom-assets-wrap" hidden><h3 class="pane-heading">Your artwork</h3><div id="custom-assets" class="palette"></div></div>
     <h3 class="pane-heading">Starting layout</h3>
-    <div class="row-control"><select id="preset" aria-label="Starting layout"><option value="hybrid">Hybrid energy flow</option><option value="generator">Hybrid + generator backup</option><option value="pump">Solar pump flow</option><option value="villa">Modern villa (dashboard)</option><option value="house-parts">Home with roof solar &amp; yard parts</option><option value="home-system">Solar home system</option><option value="school">School solar system</option><option value="factory">Factory with generator backup</option><option value="blank">Blank canvas</option></select><button id="apply-preset">Load</button></div>
+    <div class="row-control"><select id="preset" aria-label="Starting layout"><option value="hybrid">Hybrid energy flow</option><option value="generator">Hybrid + generator backup</option><option value="pump">Solar pump flow</option><option value="villa">Modern villa (dashboard)</option><option value="villa3d">Modern villa · 3D render (4 views)</option><option value="house-parts">Home with roof solar &amp; yard parts</option><option value="home-system">Solar home system</option><option value="school">School solar system</option><option value="factory">Factory with generator backup</option><option value="blank">Blank canvas</option></select><button id="apply-preset">Load</button></div>
    </div>
    <div id="pane-layers" role="tabpanel" aria-labelledby="tab-layers" class="tab-pane" hidden>
     <div id="layers" class="layer-list"></div>

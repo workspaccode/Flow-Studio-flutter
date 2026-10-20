@@ -21,10 +21,10 @@ const BX0=5.95,BX1=6.85,BY0=9.02,BY1=9.42,BH=1.45; // battery
 const ROWS=[{y:3.95,x:2.9,n:8},{y:5.95,x:2.9,n:8},{y:7.95,x:7.5,n:4}],MW=1.1,ML=1.5,GAP=.05,DEP=ML/Math.hypot(1,.38),RISE=DEP*.38;
 
 /* white box with soft, bright shading (faces +x, +y, top) */
-const wbox=(x,y,z,w,d,h,col,o={})=>{const k=o.k||[.95,.89,.86,.8,.975];
+const wbox=I.swapXY((x,y,z,w,d,h,col,o={})=>{const k=o.k||[.95,.89,.86,.8,.975];
  I.fill([[x+w,y,z],[x+w,y+d,z],[x+w,y+d,z+h],[x+w,y,z+h]],I.grad([x+w,y,z+h],[x+w,y,z],I.mix(col,k[0]),I.mix(col,k[1])));
  I.fill([[x,y+d,z],[x+w,y+d,z],[x+w,y+d,z+h],[x,y+d,z+h]],I.grad([x,y+d,z+h],[x,y+d,z],I.mix(col,k[2]),I.mix(col,k[3])));
- I.fill([[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]],I.mix(o.top||col,k[4]));};
+ I.fill([[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]],I.mix(o.top||col,k[4]));});
 const tiles=(x0,y0,x1,y1,z,col,j,jc='rgba(140,148,160,.26)')=>{I.fill([[x0,y0,z],[x1,y0,z],[x1,y1,z],[x0,y1,z]],col);const g=I.g;g.save();I.path([[x0,y0,z],[x1,y0,z],[x1,y1,z],[x0,y1,z]]);g.clip();g.strokeStyle=jc;g.lineWidth=Math.max(1,U*.018);
  for(let a=x0+j;a<x1;a+=j){g.beginPath();g.moveTo(...I.P(a,y0,z));g.lineTo(...I.P(a,y1,z));g.stroke();}for(let b=y0+j;b<y1;b+=j){g.beginPath();g.moveTo(...I.P(x0,b,z));g.lineTo(...I.P(x1,b,z));g.stroke();}g.restore();};
 const blurFill=(pts,style,b)=>{const g=I.g;g.save();g.filter=`blur(${b*U}px)`;I.fill(pts,style);g.restore();};
@@ -163,11 +163,11 @@ const U0=Object.values(boxes).reduce((a,b)=>[Math.min(a[0],b[0]),Math.min(a[1],b
 const W=U0[2]-U0[0],H=U0[3]-U0[1],scale=Math.min(1,1100/W);
 const crop=(c,r)=>{const T=document.createElement('canvas');T.width=Math.round((r[2]-r[0])*scale);T.height=Math.round((r[3]-r[1])*scale);const g=T.getContext('2d');g.imageSmoothingQuality='high';g.drawImage(c,r[0],r[1],r[2]-r[0],r[3]-r[1],0,0,T.width,T.height);return T;};
 const enc=async T=>{const b=await new Promise(r=>T.toBlob(r,'image/webp',.93));return{webp:await I.b64(b),size:b.size,w:T.width,h:T.height};};
-const f5=v=>+v.toFixed(5),files={},json={base:{},slots:{},cables:{},parts:{}};
+const SFX=I.mirror?'-m':'',f5=v=>+v.toFixed(5),files={},json={base:{},slots:{},cables:{},parts:{}};
 const baseT=crop(canv.base,U0),litT=crop(I.overlay(canv.base,litBase),U0);
-files['villa-site']=await enc(baseT);files['villa-site-lit']=await enc(litT);json.base={width:baseT.width,height:baseT.height};
-for(const k in parts){const r=boxes[k],e=await enc(crop(canv[k],r));files[k]=e;json.parts[k]={width:e.w,height:e.h};
- json.slots[parts[k].slot]={x:f5((r[0]-U0[0])/W),y:f5((r[1]-U0[1])/H),w:f5((r[2]-r[0])/W),h:f5((r[3]-r[1])/H),kind:k};}
+files['villa-site'+SFX]=await enc(baseT);files['villa-site'+SFX+'-lit']=await enc(litT);json.base={width:baseT.width,height:baseT.height};
+for(const k in parts){const r=boxes[k],e=await enc(crop(canv[k],r));files[k+SFX]=e;json.parts[k+SFX]={width:e.w,height:e.h};
+ json.slots[parts[k].slot]={x:f5((r[0]-U0[0])/W),y:f5((r[1]-U0[1])/H),w:f5((r[2]-r[0])/W),h:f5((r[3]-r[1])/H),kind:k+SFX};}
 json.cables=Object.fromEntries(Object.entries(cablePx).map(([k,p])=>[k,p.map(([x,y])=>[f5((x-U0[0])/W),f5((y-U0[1])/H)])]));
 // previews
 const all=crop(canv.base,U0),ag=all.getContext('2d');for(const k in parts){const s=json.slots[parts[k].slot],T=crop(canv[k],boxes[k]);ag.drawImage(T,Math.round(s.x*all.width),Math.round(s.y*all.height));}

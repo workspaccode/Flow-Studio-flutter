@@ -58,9 +58,9 @@ const U0=Object.values(boxes).reduce((a,b)=>[Math.min(a[0],b[0]),Math.min(a[1],b
 const scale=Math.min(1,1100/(U0[2]-U0[0]));
 const crop=(c,r)=>{const T=document.createElement('canvas');T.width=Math.round((r[2]-r[0])*scale);T.height=Math.round((r[3]-r[1])*scale);const g=T.getContext('2d');g.imageSmoothingQuality='high';g.drawImage(c,r[0],r[1],r[2]-r[0],r[3]-r[1],0,0,T.width,T.height);return T;};
 const b64=async b=>{const u=new Uint8Array(await b.arrayBuffer());let s='';for(let i=0;i<u.length;i+=8192)s+=String.fromCharCode(...u.subarray(i,i+8192));return btoa(s);};
-const out={};const W=U0[2]-U0[0],Hh=U0[3]-U0[1];
+const SFX=I.mirror?'-m':'',out={};const W=U0[2]-U0[0],Hh=U0[3]-U0[1];
 for(const k in canv){const r=k==='base'?U0:boxes[k],T=crop(canv[k],r),blob=await new Promise(res=>T.toBlob(res,'image/webp',.93));
- out[k]={webp:await b64(blob),w:T.width,h:T.height,size:blob.size,slot:k==='base'?null:{x:+((r[0]-U0[0])/W).toFixed(5),y:+((r[1]-U0[1])/Hh).toFixed(5),w:+((r[2]-r[0])/W).toFixed(5),h:+((r[3]-r[1])/Hh).toFixed(5)}};}
+ out[k==='base'?k:k+SFX]={webp:await b64(blob),w:T.width,h:T.height,size:blob.size,slot:k==='base'?null:{x:+((r[0]-U0[0])/W).toFixed(5),y:+((r[1]-U0[1])/Hh).toFixed(5),w:+((r[2]-r[0])/W).toFixed(5),h:+((r[3]-r[1])/Hh).toFixed(5)}};}
 out.cables=Object.fromEntries(Object.entries(cablePx).map(([k,pts])=>[k,pts.map(([x,y])=>[+((x-U0[0])/W).toFixed(5),+((y-U0[1])/Hh).toFixed(5)])]));
 // a composite preview with every part on
 const P=document.createElement('canvas');P.width=Math.round(W*scale)*2+60;P.height=Math.round(Hh*scale)+40;const pg=P.getContext('2d');pg.fillStyle='#fff';pg.fillRect(0,0,P.width,P.height);

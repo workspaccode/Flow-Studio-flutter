@@ -2,27 +2,33 @@
 const ISO={};
 (function(I){
 I.init=(w,h,u,ox,oy)=>{const c=document.createElement('canvas');c.width=w;c.height=h;I.c=c;I.g=c.getContext('2d');I.U=u;I.OX=ox;I.OY=oy;return c;};
-I.P=(x,y,z=0)=>[I.OX+(x-y)*I.U*.866,I.OY+(x+y)*I.U*.5-z*I.U];
+I.P=(x,y,z=0)=>I.mirror?[I.c.width-I.OX+(y-x)*I.U*.866,I.OY+(x+y)*I.U*.5-z*I.U]:[I.OX+(x-y)*I.U*.866,I.OY+(x+y)*I.U*.5-z*I.U];
+/* Mirrored view (ISO.mirror=true): world x and y swap, i.e. the geometry comes out as an exact horizontal flip of the
+   canvas (origin moves to width-OX). shade() reflects the light too, so screen-right faces stay lit; box/window draw the
+   reflected primitive in its unmirrored form (I.plain/I.swapXY) so per-face styling follows the screen side; tex() swaps corners
+   so images read left-to-right. With the flag off nothing changes. */
+I.plain=fn=>{const ox=I.OX;I.mirror=false;I.OX=I.c.width-ox;try{return fn();}finally{I.mirror=true;I.OX=ox;}};
+I.swapXY=f=>(x,y,z,w,d,h,...r)=>I.mirror?I.plain(()=>f(y,x,z,d,w,h,...r)):f(x,y,z,w,d,h,...r);
 const L=(()=>{const v=[.62,.28,.73],n=Math.hypot(...v);return v.map(a=>a/n);})();
 I.hex=h=>{h=h.replace('#','');return[0,2,4].map(i=>parseInt(h.slice(i,i+2),16));};
 I.rgb=(c,a=1)=>`rgba(${c.map(v=>Math.round(Math.max(0,Math.min(255,v)))).join(',')},${a})`;
 /* Lambert-ish shade of a base colour for a surface normal. */
-I.shade=(hex,n,amb=.58)=>{const d=Math.max(0,n[0]*L[0]+n[1]*L[1]+n[2]*L[2]);const k=amb+(1-amb)*d*1.08;return I.rgb(I.hex(hex).map(v=>v*k));};
+I.shade=(hex,n,amb=.58)=>{if(I.mirror)n=[n[1],n[0],n[2]];const d=Math.max(0,n[0]*L[0]+n[1]*L[1]+n[2]*L[2]);const k=amb+(1-amb)*d*1.08;return I.rgb(I.hex(hex).map(v=>v*k));};
 I.mix=(hex,k)=>I.rgb(I.hex(hex).map(v=>v*k));
 I.path=pts=>{const g=I.g;g.beginPath();pts.forEach((p,i)=>{const q=Array.isArray(p[0])?p:I.P(...p);i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]);});g.closePath();};
 I.fill=(pts3,style,stroke)=>{I.path(pts3);I.g.fillStyle=style;I.g.fill();if(stroke){I.g.strokeStyle=stroke;I.g.lineWidth=Math.max(1,I.U*.025);I.g.lineJoin='round';I.g.stroke();}};
 /* Vertical gradient (screen space) between two 3D points. */
 I.grad=(a3,b3,c1,c2)=>{const a=I.P(...a3),b=I.P(...b3),gr=I.g.createLinearGradient(a[0],a[1],b[0],b[1]);gr.addColorStop(0,c1);gr.addColorStop(1,c2);return gr;};
 /* Axis-aligned box: visible faces +x, +y and top. */
-I.box=(x,y,z,w,d,h,col,o={})=>{const top=o.top||col;
+I.box=I.swapXY((x,y,z,w,d,h,col,o={})=>{const top=o.top||col;
  I.fill([[x+w,y,z],[x+w,y+d,z],[x+w,y+d,z+h],[x+w,y,z+h]],o.flat?I.shade(col,[1,0,0]):I.grad([x+w,y,z+h],[x+w,y+d,z],I.shade(col,[1,0,0],.66),I.shade(col,[1,0,0],.56)),o.edge);
  I.fill([[x,y+d,z],[x+w,y+d,z],[x+w,y+d,z+h],[x,y+d,z+h]],o.flat?I.shade(col,[0,1,0]):I.grad([x,y+d,z+h],[x+w,y+d,z],I.shade(col,[0,1,0],.6),I.shade(col,[0,1,0],.5)),o.edge);
- I.fill([[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]],I.shade(top,[0,0,1],.7),o.edge);};
+ I.fill([[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]],I.shade(top,[0,0,1],.7),o.edge);});
 /* Rectangles on visible faces: face 'x' (plane x=X, u along y) or 'y' (plane y=Y, u along x). */
 I.onX=(X,u0,v0,u1,v1,style)=>I.fill([[X,u0,v0],[X,u1,v0],[X,u1,v1],[X,u0,v1]],style);
 I.onY=(Y,u0,v0,u1,v1,style)=>I.fill([[u0,Y,v0],[u1,Y,v0],[u1,Y,v1],[u0,Y,v1]],style);
 /* A framed glass window on face x or y. */
-I.window=(face,P0,u,v,w,h,o={})=>{const f=face==='x'?I.onX:I.onY,fr=o.frame||'#eef2f6',e=.07;
+I.window=(face,P0,u,v,w,h,o={})=>{if(I.mirror)return I.plain(()=>I.window(face==='x'?'y':'x',P0,u,v,w,h,o));const f=face==='x'?I.onX:I.onY,fr=o.frame||'#eef2f6',e=.07;
  f(P0+(face==='x'?.005:.005),u,v,u+w,v+h,fr);
  const gl=face==='x'?I.grad([P0,u,v+h],[P0,u+w,v],'#9cc3e6','#3d6d9c'):I.grad([u,P0,v+h],[u+w,P0,v],'#a9cdec','#45759f');
  if(I.lit){/* lights on: warm glass with a soft glow, no sky reflection */const lg=face==='x'?I.grad([P0,u,v+h],[P0,u+w,v],'#ffe3a3','#f2b44f'):I.grad([u,P0,v+h],[u+w,P0,v],'#ffe3a3','#f2b44f'),g=I.g;g.save();g.shadowColor='rgba(255,190,80,.9)';g.shadowBlur=I.U*.45;f(P0+.01,u+e,v+e,u+w-e,v+h-e,lg);g.restore();f(P0+.01,u+e,v+e,u+w-e,v+h-e,lg);}
@@ -39,7 +45,7 @@ I.moduleTex=(cols=6,rows=10,o={})=>{const cc=o.cells||['#2b4c8e','#1b3672','#142
   x.strokeStyle=o.line||'rgba(225,232,245,.7)';x.lineWidth=1.3;for(const f of [.25,.5,.75]){x.beginPath();x.moveTo(cx+cell*f,cy);x.lineTo(cx+cell*f,cy+cell);x.stroke();}}
  g=x.createLinearGradient(0,0,W,H*.9);g.addColorStop(0,'rgba(255,255,255,.24)');g.addColorStop(.35,'rgba(255,255,255,.05)');g.addColorStop(.6,'rgba(255,255,255,0)');g.addColorStop(1,'rgba(255,255,255,.1)');x.fillStyle=g;x.fillRect(frame,frame,W-2*frame,H-2*frame);return c;};
 /* Maps a texture onto the parallelogram a (top-left), b (top-right), c (bottom-left). */
-I.tex=(t,a3,b3,c3)=>{const a=I.P(...a3),b=I.P(...b3),c=I.P(...c3),g=I.g;g.save();g.setTransform((b[0]-a[0])/t.width,(b[1]-a[1])/t.width,(c[0]-a[0])/t.height,(c[1]-a[1])/t.height,a[0],a[1]);g.drawImage(t,0,0);g.restore();};
+I.tex=(t,a3,b3,c3)=>{if(I.mirror)[a3,b3,c3]=[b3,a3,[0,1,2].map(k=>b3[k]+c3[k]-a3[k])];const a=I.P(...a3),b=I.P(...b3),c=I.P(...c3),g=I.g;g.save();g.setTransform((b[0]-a[0])/t.width,(b[1]-a[1])/t.width,(c[0]-a[0])/t.height,(c[1]-a[1])/t.height,a[0],a[1]);g.drawImage(t,0,0);g.restore();};
 /* Grid of modules on a plane: origin o, edge vectors along (rows) and up (slope), counts, sizes. */
 I.panels=(t,o,along,up,n,m,mw,ml,gap=.04)=>{const nrm=v=>{const l=Math.hypot(...v);return v.map(a=>a/l);},A=nrm(along),Uv=nrm(up);
  for(let j=m-1;j>=0;j--)for(let i=0;i<n;i++){const s=i*(mw+gap),r=j*(ml+gap),P0=[0,1,2].map(k=>o[k]+A[k]*s+Uv[k]*(r+ml)),P1=[0,1,2].map(k=>P0[k]+A[k]*mw),P2=[0,1,2].map(k=>o[k]+A[k]*s+Uv[k]*r);I.tex(t,P0,P1,P2);}};

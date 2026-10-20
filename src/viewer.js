@@ -18,7 +18,7 @@ function draw(){const host=$('vw-canvas'),p=shown();$('vw-empty').hidden=!!p;hos
  for(const [i,li] of [...$('vw-list').children].entries())li.classList.toggle('active',i===current);
  $('vw-count').textContent=files.length;$('vw-prev').disabled=$('vw-next').disabled=files.length<2;$('vw-png').disabled=!p;
  if(!p){host.replaceChildren();return;}
- const svg=F.render(p,{animate:true});svg.removeAttribute('width');svg.removeAttribute('height');host.style.aspectRatio=`${p.width}/${p.height}`;host.replaceChildren(svg);
+ const svg=F.render(p,{animate:true});svg.removeAttribute('width');svg.removeAttribute('height');host.replaceChildren(svg);
  /* keep the motion continuous across redraws (live data updates the drawing every few seconds) */
  try{svg.setCurrentTime(elapsed());if(paused)svg.pauseAnimations();}catch(e){/* SMIL timing is optional */}}
 
