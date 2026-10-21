@@ -1,4 +1,6 @@
-(async()=>{const I=ISO;const c=I.init(2600,2000,74,1150,560),t=I.moduleTex();
+(async()=>{const I=ISO,t=I.moduleTex();
+/* drawn twice on identical canvases: normal and with the lights on (ISO.lit) for the lit-window overlay */
+const draw=lit=>{I.lit=lit;const c=I.init(2600,2000,74,1150,560);
 // plot
 I.shadow(0,0,17,13.5,1.2,.16,.4);
 I.slab(0,0,17,13.5,.35,'#d9dde2',1.1);
@@ -45,5 +47,7 @@ I.slab(GX+.4,GY1,3.6,13.5-GY1,.02,'#c3c8ce',.6);
 for(const u of [2.8,4.3,5.8]) I.bush(u,Y1+.9,.9);I.bush(9.6,Y1+.9,.85,'#5aa646');
 I.tree(1.6,11.3,1.15,'#62aa4c');
 I.fill([[0,13.5,0],[10.6,13.5,0],[10.6,13.5,.9],[0,13.5,.9]],'rgba(0,0,0,0)');
-return await I.export(c,'solar-home');
+I.lit=false;return c;};
+const c=draw(false),cl=draw(true);
+return await I.export(c,'solar-home',{lit:cl});
 })()
