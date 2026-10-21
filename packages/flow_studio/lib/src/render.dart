@@ -314,10 +314,15 @@ class FlowScene {
   }
 
   /// Paints at canvas scale (1 unit = 1 project pixel) for animation [time] in seconds.
-  void paint(Canvas canvas, {required double time, bool transparent = false}) {
+  ///
+  /// A [backgroundColor] replaces the project's background and its scene (sky, clouds) with that flat colour,
+  /// also when [transparent] is true (which then only drops the project's own background and scene).
+  void paint(Canvas canvas, {required double time, bool transparent = false, Color? backgroundColor}) {
     final p = project;
     canvas.clipRect(Rect.fromLTWH(0, 0, p.width, p.height));
-    if (!transparent) {
+    if (backgroundColor != null) {
+      canvas.drawRect(Rect.fromLTWH(0, 0, p.width, p.height), Paint()..color = backgroundColor);
+    } else if (!transparent) {
       canvas.drawRect(Rect.fromLTWH(0, 0, p.width, p.height), Paint()..color = p.background);
       paintScene(canvas, p, time);
     }

@@ -19,6 +19,7 @@ class FlowStudioView extends StatefulWidget {
     super.key,
     required FlowController this.controller,
     this.transparent = false,
+    this.backgroundColor,
     this.textStyle = const FlowTextStyle(),
     this.time,
     this.expand = false,
@@ -35,6 +36,7 @@ class FlowStudioView extends StatefulWidget {
     this.controller,
     this.bundle,
     this.transparent = false,
+    this.backgroundColor,
     this.textStyle = const FlowTextStyle(),
     this.time,
     this.expand = false,
@@ -49,6 +51,9 @@ class FlowStudioView extends StatefulWidget {
 
   /// Skips the canvas background color.
   final bool transparent;
+
+  /// Paints this flat colour instead of the project's background and scene. Wins over [transparent].
+  final Color? backgroundColor;
 
   /// Font used for labels. Bundle Arial (or a metric-compatible font such as
   /// Arimo, plus an Arabic font) for pixel-identical labels on Android.
@@ -186,7 +191,7 @@ class _FlowStudioViewState extends State<FlowStudioView> with SingleTickerProvid
     }
     final project = _sceneProject!;
     final paint = CustomPaint(
-      painter: _FlowPainter(scene, _time, widget.transparent),
+      painter: _FlowPainter(scene, _time, widget.transparent, widget.backgroundColor),
       isComplex: true,
       willChange: _animating,
     );
@@ -215,21 +220,22 @@ class _FlowStudioViewState extends State<FlowStudioView> with SingleTickerProvid
 }
 
 class _FlowPainter extends CustomPainter {
-  _FlowPainter(this.scene, this.time, this.transparent) : super(repaint: time);
+  _FlowPainter(this.scene, this.time, this.transparent, this.backgroundColor) : super(repaint: time);
 
   final FlowScene scene;
   final ValueNotifier<double> time;
   final bool transparent;
+  final Color? backgroundColor;
 
   @override
   void paint(Canvas canvas, Size size) {
     final p = scene.project;
     canvas.save();
     canvas.scale(size.width / p.width, size.height / p.height);
-    scene.paint(canvas, time: time.value, transparent: transparent);
+    scene.paint(canvas, time: time.value, transparent: transparent, backgroundColor: backgroundColor);
     canvas.restore();
   }
 
   @override
-  bool shouldRepaint(_FlowPainter old) => old.scene != scene || old.transparent != transparent;
+  bool shouldRepaint(_FlowPainter old) => old.scene != scene || old.transparent != transparent || old.backgroundColor != backgroundColor;
 }
