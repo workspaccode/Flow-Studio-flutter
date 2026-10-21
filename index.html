@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Flow Studio — مركز التشغيل</title>
+<meta name="description" content="نقطة الدخول إلى كل شاشات Flow Studio: المحرر، العارض، الدليل، والأمثلة.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23182a49'/%3E%3Cpath d='M36 8 18 36h12l-4 20 20-30H34z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f3f6fb;--panel:#fff;--ink:#14213d;--ink-2:#41506a;--soft:#6b7a93;--faint:#94a1b5;
+  --rule:#e4e9f2;--brand:#4d73ef;--brand-2:#27b6c9;--brand-ink:#2f56d6;--tint:#eaf0ff;
+  --glow:#4d73ef26;--shadow:0 1px 2px #1d2c4410,0 12px 32px #1d2c440f;--shadow-hover:0 2px 4px #1d2c4414,0 18px 44px #3556d526;
+  --hero-a:#182a49;--hero-b:#243f77;
+  --font:"Segoe UI",-apple-system,BlinkMacSystemFont,"SF Arabic","Noto Sans Arabic",Tahoma,Arial,sans-serif;
+}
+:root[data-theme=dark]{
+  --bg:#0c1322;--panel:#141d31;--ink:#eaf0fb;--ink-2:#b4c0d6;--soft:#8c9ab3;--faint:#66738c;
+  --rule:#222e47;--brand:#7b98ff;--brand-2:#4fd1e0;--brand-ink:#9db3ff;--tint:#1b2745;
+  --glow:#7b98ff22;--shadow:0 1px 2px #0006,0 12px 32px #0005;--shadow-hover:0 2px 4px #0008,0 18px 44px #5b7cf540;
+  --hero-a:#0f1a33;--hero-b:#1a2d5a;
+}
+@media(prefers-color-scheme:dark){
+  :root:not([data-theme=light]){
+    --bg:#0c1322;--panel:#141d31;--ink:#eaf0fb;--ink-2:#b4c0d6;--soft:#8c9ab3;--faint:#66738c;
+    --rule:#222e47;--brand:#7b98ff;--brand-2:#4fd1e0;--brand-ink:#9db3ff;--tint:#1b2745;
+    --glow:#7b98ff22;--shadow:0 1px 2px #0006,0 12px 32px #0005;--shadow-hover:0 2px 4px #0008,0 18px 44px #5b7cf540;
+    --hero-a:#0f1a33;--hero-b:#1a2d5a;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:var(--font);color:var(--ink);background:var(--bg);line-height:1.7;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--brand);outline-offset:3px;border-radius:8px}
+.wrap{width:min(1180px,100% - 40px);margin-inline:auto}
+
+/* top bar */
+.top{position:sticky;top:0;z-index:20;backdrop-filter:saturate(1.4) blur(14px);background:color-mix(in srgb,var(--bg) 78%,transparent);border-bottom:1px solid var(--rule)}
+.top .wrap{display:flex;align-items:center;gap:18px;height:64px}
+.brand{display:flex;align-items:center;gap:11px;font-weight:700;font-size:16px}
+.mark{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,var(--hero-a),var(--hero-b));display:grid;place-items:center;box-shadow:0 6px 16px #182a4940}
+.mark svg{width:20px;height:20px;fill:#fff}
+.brand small{display:block;font-size:11px;font-weight:500;color:var(--faint);margin-top:-3px;direction:ltr;text-align:start}
+.nav{margin-inline-start:auto;display:flex;align-items:center;gap:4px}
+.nav a{font-size:13.5px;font-weight:600;color:var(--ink-2);padding:8px 13px;border-radius:10px;transition:.15s}
+.nav a:hover{background:var(--tint);color:var(--brand-ink)}
+.icon-btn{width:38px;height:38px;border-radius:11px;border:1px solid var(--rule);background:var(--panel);color:var(--ink-2);cursor:pointer;display:grid;place-items:center;transition:.15s}
+.icon-btn:hover{border-color:var(--brand);color:var(--brand-ink)}
+.icon-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* hero */
+.hero{position:relative;overflow:hidden;margin-top:28px;border-radius:28px;color:#fff;background:radial-gradient(900px 420px at 85% -10%,#3d63d980,transparent 60%),radial-gradient(700px 360px at 0% 110%,#27b6c940,transparent 60%),linear-gradient(135deg,var(--hero-a),var(--hero-b));box-shadow:0 24px 60px #182a4955}
+.hero::before{content:"";position:absolute;inset:0;background-image:radial-gradient(#ffffff1f 1px,transparent 1px);background-size:22px 22px;mask-image:linear-gradient(to left,#000 0%,transparent 65%);-webkit-mask-image:linear-gradient(to left,#000 0%,transparent 65%);pointer-events:none}
+.hero-grid{position:relative;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:36px;align-items:center;padding:56px 56px 56px 40px}
+.badge{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;padding:6px 14px 6px 12px;border-radius:99px;background:#ffffff1a;border:1px solid #ffffff2e}
+.badge i{width:8px;height:8px;border-radius:50%;background:#5ee6a6;box-shadow:0 0 0 4px #5ee6a633;animation:pulse 2s infinite}
+h1{font-size:clamp(30px,4.4vw,52px);line-height:1.2;margin:18px 0 14px;letter-spacing:-.5px;font-weight:800}
+h1 span{background:linear-gradient(90deg,#9db3ff,#6fe3ef);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{margin:0 0 28px;font-size:16.5px;color:#d3ddf3;max-width:520px}
+.cta{display:flex;flex-wrap:wrap;gap:12px}
+.btn{display:inline-flex;align-items:center;gap:10px;font-weight:700;font-size:14.5px;padding:13px 22px;border-radius:14px;transition:.18s;cursor:pointer;border:0;font-family:inherit}
+.btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .18s}
+.btn:hover svg{transform:translateX(-4px)}
+.btn.primary{background:#fff;color:#1d3a8a;box-shadow:0 10px 26px #0003}
+.btn.primary:hover{transform:translateY(-2px);box-shadow:0 14px 32px #0004}
+.btn.ghost{background:#ffffff14;color:#fff;border:1px solid #ffffff38}
+.btn.ghost:hover{background:#ffffff24}
+.stats{display:flex;gap:30px;margin-top:34px;padding-top:24px;border-top:1px solid #ffffff22}
+.stats b{display:block;font-size:24px;line-height:1.1;direction:ltr;text-align:start}
+.stats span{font-size:12.5px;color:#aebbd8}
+
+.shot{position:relative;direction:ltr}
+.shot::before{content:"";position:absolute;inset:6% 4%;background:radial-gradient(closest-side,#6f93ff88,transparent);filter:blur(30px)}
+.window{position:relative;border-radius:16px;background:#fff;box-shadow:0 30px 70px #02081c66,0 0 0 1px #ffffff30;overflow:hidden;transform:perspective(1400px) rotateY(-7deg) rotateX(3deg);transition:transform .5s}
+.shot:hover .window{transform:perspective(1400px) rotateY(0) rotateX(0)}
+.window-bar{display:flex;gap:6px;padding:10px 14px;background:#eef2f8;border-bottom:1px solid #dfe5ef}
+.window-bar i{width:10px;height:10px;border-radius:50%;background:#cdd5e2}
+.window-bar i:nth-child(1){background:#ff6b63}.window-bar i:nth-child(2){background:#ffbd44}.window-bar i:nth-child(3){background:#3fcf6d}
+.window img{display:block;width:100%;height:auto;background:#fff}
+.float{position:absolute;display:flex;align-items:center;gap:10px;background:#fff;color:#14213d;border-radius:14px;padding:10px 14px;box-shadow:0 14px 34px #02081c55;font-size:12.5px;font-weight:700;animation:bob 5s ease-in-out infinite}
+.float small{display:block;font-weight:500;color:#6b7a93;font-size:11px}
+.float .dot{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:17px}
+.float.a{left:-18px;bottom:16%}.float.a .dot{background:#e5f8ef}
+.float.b{right:-14px;top:12%;animation-delay:-2.2s}.float.b .dot{background:#fff3da}
+
+/* sections */
+section{padding-top:68px}
+.eyebrow{font-size:12.5px;font-weight:700;color:var(--brand-ink);letter-spacing:.4px}
+.head{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:26px;flex-wrap:wrap}
+h2{font-size:clamp(22px,2.6vw,30px);margin:4px 0 0;letter-spacing:-.2px;font-weight:800}
+.head p{margin:0;color:var(--soft);max-width:460px;font-size:14.5px}
+
+/* screen cards */
+.cards{display:grid;grid-template-columns:repeat(12,1fr);gap:18px}
+.card{position:relative;grid-column:span 4;display:flex;flex-direction:column;gap:12px;padding:24px;border-radius:22px;background:var(--panel);border:1px solid var(--rule);box-shadow:var(--shadow);overflow:hidden;transition:transform .2s,box-shadow .2s,border-color .2s;isolation:isolate}
+.card::after{content:"";position:absolute;inset-inline-end:-60px;top:-60px;width:180px;height:180px;border-radius:50%;background:radial-gradient(closest-side,var(--c,var(--brand)),transparent);opacity:.13;z-index:-1;transition:opacity .2s,transform .3s}
+.card:hover{transform:translateY(-4px);box-shadow:var(--shadow-hover);border-color:color-mix(in srgb,var(--c,var(--brand)) 45%,var(--rule))}
+.card:hover::after{opacity:.24;transform:scale(1.25)}
+.card.wide{grid-column:span 6}
+.ico{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:color-mix(in srgb,var(--c,var(--brand)) 14%,transparent);color:var(--c,var(--brand))}
+.ico svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.card h3{margin:6px 0 0;font-size:18px;display:flex;align-items:center;gap:10px}
+.tag{font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:99px;background:var(--tint);color:var(--brand-ink);letter-spacing:.3px}
+.card p{margin:0;color:var(--soft);font-size:14px;flex:1}
+.go{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700;color:var(--c,var(--brand));padding-top:12px;border-top:1px dashed var(--rule);margin-top:4px}
+.go svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
+.card:hover .go svg{transform:translateX(-5px)}
+.path{direction:ltr;text-align:start;font:11.5px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--faint)}
+.c-blue{--c:#4d73ef}.c-teal{--c:#14a8bd}.c-green{--c:#22a56a}.c-amber{--c:#e08a14}.c-violet{--c:#8a5cf0}.c-rose{--c:#e0527a}
+:root[data-theme=dark] .c-blue{--c:#7b98ff}
+
+/* docs strip */
+.docs{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.doc{display:flex;flex-direction:column;gap:4px;padding:16px 18px;border-radius:16px;background:var(--panel);border:1px solid var(--rule);transition:.18s}
+.doc:hover{border-color:var(--brand);transform:translateY(-2px);box-shadow:var(--shadow)}
+.doc b{font-size:14px}.doc span{font-size:12px;color:var(--soft)}
+.doc em{font-style:normal;direction:ltr;text-align:start;font:11px ui-monospace,Menlo,monospace;color:var(--brand-ink)}
+
+/* flow steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;position:relative;counter-reset:s}
+.step{position:relative;padding:0 18px;text-align:center}
+.step::before{counter-increment:s;content:counter(s);width:46px;height:46px;border-radius:50%;margin:0 auto 14px;display:grid;place-items:center;font-weight:800;font-size:17px;color:#fff;background:linear-gradient(135deg,var(--brand),var(--brand-2));box-shadow:0 8px 20px var(--glow);position:relative;z-index:1}
+.step:not(:last-child)::after{content:"";position:absolute;top:22px;inset-inline-end:calc(-50% + 23px);width:calc(100% - 46px);height:2px;background:repeating-linear-gradient(90deg,var(--brand) 0 8px,transparent 8px 16px);opacity:.45;animation:dash 1.2s linear infinite}
+.step b{display:block;font-size:15px}.step span{font-size:13px;color:var(--soft)}
+
+footer{margin-top:80px;border-top:1px solid var(--rule);padding:28px 0 40px;color:var(--faint);font-size:13px}
+footer .wrap{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:center;justify-content:space-between}
+footer nav{display:flex;gap:18px;flex-wrap:wrap}
+footer a:hover{color:var(--brand-ink)}
+
+@keyframes pulse{50%{box-shadow:0 0 0 8px #5ee6a600}}
+@keyframes bob{50%{transform:translateY(-8px)}}
+@keyframes dash{to{background-position:16px 0}}
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .6s,transform .6s}
+.reveal.in{opacity:1;transform:none}
+
+@media(max-width:1000px){
+  .hero-grid{grid-template-columns:1fr;padding:40px 28px}
+  .shot{max-width:560px;margin-inline:auto}
+  .card,.card.wide{grid-column:span 6}
+  .docs{grid-template-columns:repeat(2,1fr)}
+  .steps{grid-template-columns:repeat(2,1fr);row-gap:28px}.step::after{display:none}
+}
+@media(max-width:620px){
+  .nav a{display:none}
+  .card,.card.wide{grid-column:span 12}
+  .hero-grid{padding:32px 22px}.stats{gap:20px}.float{display:none}
+  .docs{grid-template-columns:1fr}.steps{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Flow Studio">
+      <span class="mark"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></span>
+      <span>Flow Studio<small>Energy diagrams, made yours.</small></span>
+    </a>
+    <nav class="nav" aria-label="روابط سريعة">
+      <a href="#screens">الشاشات</a>
+      <a href="#docs">الدليل</a>
+      <a href="#how">كيف يعمل</a>
+    </nav>
+    <button class="icon-btn" id="theme" type="button" aria-label="تبديل الوضع الليلي">
+      <svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap">
+
+    <div class="hero">
+      <div class="hero-grid">
+        <div>
+          <span class="badge"><i></i>يعمل بالكامل بدون إنترنت</span>
+          <h1>ارسم تدفّق الطاقة <span>بشكل احترافي</span></h1>
+          <p>محرر ومشغّل لمخططات الطاقة الشمسية: مجسمات أيزومترية، خطوط متحركة، وبيانات حية. ابدأ من هنا وانتقل إلى أي شاشة بضغطة واحدة.</p>
+          <div class="cta">
+            <a class="btn primary" href="Flow-Studio.html#editor">افتح المحرر
+              <svg viewBox="0 0 24 24"><path d="M19 12H5m6-6-6 6 6 6"/></svg></a>
+            <a class="btn ghost" href="Flow-Viewer.html">عارض المخططات</a>
+          </div>
+          <div class="stats">
+            <div><b>6+</b><span>شاشات وأدوات</span></div>
+            <div><b>35+</b><span>مجسم جاهز</span></div>
+            <div><b>HTML · SVG · PNG</b><span>صيغ التصدير</span></div>
+          </div>
+        </div>
+        <div class="shot">
+          <div class="window">
+            <div class="window-bar"><i></i><i></i><i></i></div>
+            <img src="examples/hybrid-energy-flow.png" alt="معاينة مخطط Hybrid energy flow" width="2000" height="1300" fetchpriority="high">
+          </div>
+          <div class="float a"><span class="dot">☀️</span><div>PV 6.8 kW<small>إنتاج مباشر</small></div></div>
+          <div class="float b"><span class="dot">🔋</span><div>Battery 82%<small>شحن</small></div></div>
+        </div>
+      </div>
+    </div>
+
+    <section id="screens">
+      <div class="head">
+        <div><div class="eyebrow">كل الشاشات</div><h2>اختر وجهتك</h2></div>
+        <p>كل بطاقة تفتح شاشة مباشرة من نفس المجلد، بدون سيرفر.</p>
+      </div>
+      <div class="cards">
+
+        <a class="card c-blue reveal" href="Flow-Studio.html#home">
+          <span class="ico"><svg viewBox="0 0 24 24"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg></span>
+          <h3>صفحة التعريف <span class="tag">Landing</span></h3>
+          <p>جولة سريعة في المحرر ومعاينة متحركة للبيانات الحية والمزايا والمنصات.</p>
+          <div class="go"><span class="path">Flow-Studio.html#home</span><svg viewBox="0 0 24 24"><path d="M19 12H5m6-6-6 6 6 6"/></svg></div>
+        </a>
+
+        <a class="card c-teal reveal" href="Flow-Studio.html#editor">
+          <span class="ico"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg></span>
+          <h3>المحرر <span class="tag">Editor</span></h3>
+          <p>ابنِ المخطط: أضف العناصر، اربطها بخطوط، عدّل الخصائص، ثم صدّر النتيجة.</p>
+          <div class="go"><span class="path">Flow-Studio.html#editor</span><svg viewBox="0 0 24 24"><path d="M19 12H5m6-6-6 6 6 6"/></svg></div>
+        </a>
+
+        <a class="card c-green reveal" href="Flow-Viewer.html">
+          <span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2.5"/><path d="M8 21h8M12 17v4"/><path d="m10 8.5 4 2-4 2z"/></svg></span>
+          <h3>عارض المخططات <span class="tag">Viewer</span></h3>
+          <p>اعرض ملفات <b>.flow.json</b> بملء الشاشة، مع تنقّل تلقائي ووضع عرض تقديمي.</p>
+          <div class="go"><span class="path">Flow-Viewer.html</span><svg viewBox="0 0 24 24"><path d="M19 12H5m6-6-6 6 6 6"/></svg></div>
+        </a>
+
+        <a class="card c-amber reveal" href="Flow-Studio.html#docs">
+          <span class="ico"><svg viewBox="0 0 24 24"><path d="M5 4h10a4 4 0 0 1 4 4v12H9a4 4 0 0 1-4-4z"/><path d="M9 9h6M9 13h6"/></svg></span>
+          <h3>دليل الاستخدام <span class="tag">Docs</span></h3>
+          <p>توثيق كامل مع بحث: المحرر، التضمين على الويب، Flutter، والبيانات والحالات.</p>
+          <div class="go"><span class="path">Flow-Studio.html#docs</span><svg viewBox="0 0 24 24"><path d="M19 12H5m6-6-6 6 6 6"/></svg></div>
+        </a>
+
+        <a class="card c-violet reveal" href="examples/hybrid-energy-flow.html">
+          <span class="ico"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></span>
+          <h3>مثال مصدَّر <span class="tag">Export</span></h3>
+          <p>صفحة HTML ناتجة من <b>Export → HTML</b>: الفلو المتحرك وواجهة التحكم فقط.</p>
+          <div class="go"><span class="path">examples/hybrid-energy-flow.html</span><svg viewBox="0 0 24 24"><path d="M19 12H5m6-6-6 6 6 6"/></svg></div>
+        </a>
+
+        <a class="card c-rose reveal" href="packages/flow_studio/README.md">
+          <span class="ico"><svg viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></svg></span>
+          <h3>حزمة Flutter <span class="tag">Dart</span></h3>
+          <p>اعرض نفس المخططات أصليًا داخل تطبيقات Flutter عبر مكتبة <b>flow_studio</b>.</p>
+          <div class="go"><span class="path">packages/flow_studio</span><svg viewBox="0 0 24 24"><path d="M19 12H5m6-6-6 6 6 6"/></svg></div>
+        </a>
+
+      </div>
+    </section>
+
+    <section id="docs">
+      <div class="head">
+        <div><div class="eyebrow">وصول سريع</div><h2>أقسام الدليل</h2></div>
+        <p>اقفز مباشرة إلى القسم الذي تحتاجه.</p>
+      </div>
+      <div class="docs">
+        <a class="doc reveal" href="Flow-Studio.html#docs/quickstart"><b>البدء السريع</b><span>أول مخطط خلال دقائق</span><em>#docs/quickstart</em></a>
+        <a class="doc reveal" href="Flow-Studio.html#docs/editor"><b>دليل المحرر</b><span>الخطوط والصور والاختصارات</span><em>#docs/editor</em></a>
+        <a class="doc reveal" href="Flow-Studio.html#docs/web"><b>التضمين على الويب</b><span>أضفه لأي صفحة</span><em>#docs/web</em></a>
+        <a class="doc reveal" href="Flow-Studio.html#docs/flutter"><b>Flutter</b><span>مكتبة أو WebView</span><em>#docs/flutter</em></a>
+        <a class="doc reveal" href="Flow-Studio.html#docs/exports"><b>صيغ التصدير</b><span>HTML · SVG · PNG · Lottie</span><em>#docs/exports</em></a>
+      </div>
+    </section>
+
+    <section id="how">
+      <div class="head">
+        <div><div class="eyebrow">سير العمل</div><h2>من الفكرة إلى الشاشة في أربع خطوات</h2></div>
+      </div>
+      <div class="steps">
+        <div class="step reveal"><b>اختر مخططًا</b><span>Hybrid أو مولد احتياطي أو مضخة</span></div>
+        <div class="step reveal"><b>أضف العناصر</b><span>ألواح، إنفرتر، بطارية، مبنى</span></div>
+        <div class="step reveal"><b>اربط بالخطوط</b><span>اتجاه وقيم وحالات حية</span></div>
+        <div class="step reveal"><b>صدّر وشارك</b><span>HTML أو صورة أو ملف قابل للتحرير</span></div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Flow Studio · يعمل محليًا بدون npm أو سيرفر</span>
+    <nav aria-label="روابط التذييل">
+      <a href="Flow-Studio.html#editor">المحرر</a>
+      <a href="Flow-Viewer.html">العارض</a>
+      <a href="Flow-Studio.html#docs">الدليل</a>
+      <a href="README.md">README</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var root=document.documentElement,btn=document.getElementById('theme'),KEY='flow-hub-theme';
+  try{var s=localStorage.getItem(KEY);if(s)root.dataset.theme=s;}catch(e){}
+  btn.addEventListener('click',function(){
+    var dark=root.dataset.theme?root.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;
+    root.dataset.theme=dark?'light':'dark';
+    try{localStorage.setItem(KEY,root.dataset.theme);}catch(e){}
+  });
+  var els=document.querySelectorAll('.reveal');
+  if(!('IntersectionObserver' in window)){els.forEach(function(e){e.classList.add('in')});return;}
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}})},{threshold:.12});
+  els.forEach(function(e,i){e.style.transitionDelay=(i%6)*60+'ms';io.observe(e);});
+})();
+</script>
+</body>
+</html>
